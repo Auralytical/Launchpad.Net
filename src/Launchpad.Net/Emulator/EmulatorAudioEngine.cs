@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 
 namespace Launchpad.Emulator
 {
@@ -10,10 +9,10 @@ namespace Launchpad.Emulator
 
         public IReadOnlyList<MidiDeviceInfo> ListLaunchpadDevices()
         {
-            var devices = ImmutableList.CreateBuilder<MidiDeviceInfo>();
+            var devices = new List<MidiDeviceInfo>();
             devices.Add(new MidiDeviceInfo("Mk2", "Mk2", MidiDeviceType.Mk2));
             devices.Add(new MidiDeviceInfo("Pro", "Pro", MidiDeviceType.Pro));
-            return devices.ToImmutable();
+            return devices;
         }
         public IReadOnlyList<OutputDeviceInfo> ListOutputDevices() => Array.Empty<OutputDeviceInfo>();
         

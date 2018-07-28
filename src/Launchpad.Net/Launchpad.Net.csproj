@@ -1,15 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.3</TargetFramework>
+    <PackageLicenseUrl>http://opensource.org/licenses/MIT</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/RogueException/Launchpad.Net</PackageProjectUrl>
+    <RepositoryUrl>git://github.com/RogueException/Launchpad.Net</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Launchpad</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>Launchpad.Net</AssemblyName>
     <RootNamespace>Launchpad</RootNamespace>
     <RuntimeIdentifiers>win-any;ubuntu-any</RuntimeIdentifiers>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="System.Collections.Immutable" Version ="1.4.0" />
-    <PackageReference Include="System.Console" Version ="4.3.0" />
-  </ItemGroup>
-
 </Project>

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 
 namespace Launchpad.Alsa
 {
@@ -10,7 +9,7 @@ namespace Launchpad.Alsa
         
         public IReadOnlyList<MidiDeviceInfo> ListLaunchpadDevices()
         {
-            var devices = ImmutableList.CreateBuilder<MidiDeviceInfo>();
+            var devices = new List<MidiDeviceInfo>();
             int card = -1;
             while (NativeMethods.snd_card_next(ref card) >= 0 && card >= 0)
             {
@@ -46,7 +45,7 @@ namespace Launchpad.Alsa
                 }
                 finally { NativeMethods.snd_ctl_close(ctl); }
             }
-            return devices.ToImmutable();
+            return devices;
         }
         public IReadOnlyList<OutputDeviceInfo> ListOutputDevices() => Array.Empty<OutputDeviceInfo>();
         

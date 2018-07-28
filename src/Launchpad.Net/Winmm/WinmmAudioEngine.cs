@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 
 namespace Launchpad.Winmm
 {
@@ -10,7 +9,7 @@ namespace Launchpad.Winmm
 
         public IReadOnlyList<MidiDeviceInfo> ListLaunchpadDevices()
         {
-            var devices = ImmutableList.CreateBuilder<MidiDeviceInfo>();
+            var devices = new List<MidiDeviceInfo>();
             int inDeviceCount = NativeMethods.midiInGetNumDevs();
             for (uint i = 0; i < inDeviceCount; i++)
             {
@@ -23,7 +22,7 @@ namespace Launchpad.Winmm
                 else if (caps.szPname.Contains(Midi.ProName))
                     devices.Add(new MidiDeviceInfo(caps.szPname, caps.szPname, MidiDeviceType.Pro));
             }
-            return devices.ToImmutable();
+            return devices;
         }
         public IReadOnlyList<OutputDeviceInfo> ListOutputDevices() => Array.Empty<OutputDeviceInfo>();
         
