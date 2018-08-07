@@ -13,6 +13,6 @@
     <AssemblyName>Launchpad.Net</AssemblyName>
     <RootNamespace>Launchpad</RootNamespace>
     <RuntimeIdentifiers>win-any;ubuntu-any</RuntimeIdentifiers>
-    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionPrefix>0.2.0</VersionPrefix>
   </PropertyGroup>
 </Project>
