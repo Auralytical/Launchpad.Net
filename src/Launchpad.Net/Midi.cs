@@ -1,6 +1,6 @@
 namespace Launchpad
 {
-    public static class Midi
+    internal static class Midi
     {
         public const string Mk2Name = "Launchpad MK2";
         public const string Mk2SubName = "Launchpad MK2 MIDI 2";

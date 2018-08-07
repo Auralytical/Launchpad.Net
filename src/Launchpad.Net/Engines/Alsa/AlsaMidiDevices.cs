@@ -1,15 +1,13 @@
 using System;
 using System.Collections.Generic;
 
-namespace Launchpad.Alsa
+namespace Launchpad.Engines.Alsa
 {
-    internal class AlsaAudioEngine : IAudioEngine
+    public static class AlsaMidiDevices
     {
-        public static readonly AlsaAudioEngine Instance = new AlsaAudioEngine();
-        
-        public IReadOnlyList<MidiDeviceInfo> ListLaunchpadDevices()
+        public static IReadOnlyList<LaunchpadMidiDevice> GetLaunchpads()
         {
-            var devices = new List<MidiDeviceInfo>();
+            var devices = new List<AlsaLaunchpadMidiDevice>();
             int card = -1;
             while (NativeMethods.snd_card_next(ref card) >= 0 && card >= 0)
             {
@@ -37,9 +35,9 @@ namespace Launchpad.Alsa
 
                             string port = $"hw:{info.Card},{info.Device},{info.SubDevice}";
                             if (info.Name.Contains(Midi.Mk2Name) && info.Subname.Contains(Midi.Mk2SubName))
-                                devices.Add(new MidiDeviceInfo(port, info.Name, MidiDeviceType.Mk2));
+                                devices.Add(new AlsaLaunchpadMidiDevice(port, info.Name, DeviceType.Mk2));
                             else if (info.Name.Contains(Midi.ProName) && info.Subname.Contains(Midi.ProSubName))
-                                devices.Add(new MidiDeviceInfo(port, info.Name, MidiDeviceType.Pro));
+                                devices.Add(new AlsaLaunchpadMidiDevice(port, info.Name, DeviceType.Pro));
                         }
                     }
                 }
@@ -47,11 +45,5 @@ namespace Launchpad.Alsa
             }
             return devices;
         }
-        public IReadOnlyList<OutputDeviceInfo> ListOutputDevices() => Array.Empty<OutputDeviceInfo>();
-        
-        public RawMidiDevice GetMidiDevice(MidiDeviceInfo info) => new AlsaMidiDevice(info);
-        public RawOutputDevice GetOutputDevice(OutputDeviceInfo info) => new AlsaOutputDevice(info);
-
-        void IDisposable.Dispose() { }
     }
 }

@@ -1,9 +1,9 @@
 using System;
 using System.Threading;
 
-namespace Launchpad.Winmm
+namespace Launchpad.Engines.Winmm
 {
-    internal class WinmmMidiDevice : RawMidiDevice
+    internal class WinmmLaunchpadMidiDevice : LaunchpadMidiDevice
     {
         private uint _inDeviceId, _outDeviceId;
         private IntPtr _inDeviceHandle, _outDeviceHandle;
@@ -12,8 +12,8 @@ namespace Launchpad.Winmm
         private ManualResetEventSlim _inputClosed, _outputClosed;
         private MidiBuffer _outBuffer;
 
-        public WinmmMidiDevice(MidiDeviceInfo info)
-            : base(info)
+        public WinmmLaunchpadMidiDevice(string id, string name, DeviceType type)
+            : base(id, name, type)
         {
             _inputClosed = new ManualResetEventSlim(false);
             _outputClosed = new ManualResetEventSlim(false);

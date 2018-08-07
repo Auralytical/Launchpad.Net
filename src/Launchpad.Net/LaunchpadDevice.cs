@@ -15,40 +15,9 @@ namespace Launchpad
         public const int MaxInnerWidth = 8;
         public const int MaxInnerHeight = 8;
 
-        private static IAudioEngine _engine;
-
-        public static IReadOnlyList<MidiDeviceInfo> AvailableDevices { get; private set; }
-
-        static LaunchpadDevice()
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                SetEngine(EngineType.Winmm);
-            else //if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                SetEngine(EngineType.Alsa);
-        }
-        public static void SetEngine(EngineType type)
-        {
-            switch (type)
-            {
-                case EngineType.Winmm: _engine = Winmm.WinmmAudioEngine.Instance; break;
-                case EngineType.Alsa: _engine = Alsa.AlsaAudioEngine.Instance; break;
-                case EngineType.Emulator: _engine = Emulator.EmulatorAudioEngine.Instance; break;
-                default: throw new ArgumentOutOfRangeException(nameof(type));
-            }
-            RefreshDevices();
-        }
-
-        public static void RefreshDevices() => AvailableDevices = _engine.ListLaunchpadDevices();
-        public static LaunchpadDevice For(MidiDeviceInfo device) 
-        {
-            if (device.Type == MidiDeviceType.None)
-                return null;
-            return new LaunchpadDevice(_engine.GetMidiDevice(device));
-        } 
-
         public event Action<IReadOnlyList<LaunchpadEvent>> Tick;
 
-        private readonly RawMidiDevice _device;
+        private readonly LaunchpadMidiDevice _device;
 
         private ConcurrentQueue<LaunchpadEvent> _queuedEvents;
         private Task _task;
@@ -61,13 +30,13 @@ namespace Launchpad
         public bool IsRunning { get; private set; }
 
         public string DeviceId => _device.Id;
-        public MidiDeviceType DeviceType => _device.Type;
+        public DeviceType DeviceType => _device.Type;
         public bool IsConnected => _device.IsConnected;
         public int LEDCount => _device.LEDCount;
         public int Width => _device.Width;
         public int Height => _device.Height;
 
-        private LaunchpadDevice(RawMidiDevice device)
+        public LaunchpadDevice(LaunchpadMidiDevice device)
         {
             _device = device;
 

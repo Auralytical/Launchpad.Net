@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace Launchpad.Winmm
+namespace Launchpad.Engines.Winmm
 {
     internal class MidiBuffer : IDisposable
     {

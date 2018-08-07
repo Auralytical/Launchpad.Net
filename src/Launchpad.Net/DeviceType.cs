@@ -1,6 +1,6 @@
 namespace Launchpad
 {
-    public enum MidiDeviceType : byte
+    public enum DeviceType : byte
     {
         None,
         Mk2,

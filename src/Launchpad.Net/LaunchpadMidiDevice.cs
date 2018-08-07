@@ -2,8 +2,35 @@ using System;
 
 namespace Launchpad
 {
-    public abstract class RawMidiDevice  : IDisposable
+    public abstract class LaunchpadMidiDevice  : IDisposable
     {
+        private static readonly byte[,] ProMidiLayout = new byte[,]
+        {
+            { 255, 91, 92, 93, 94, 95, 96, 97, 98, 255 },
+            { 80, 81, 82, 83, 84, 85, 86, 87, 88, 89 },
+            { 70, 71, 72, 73, 74, 75, 76, 77, 78, 79 },
+            { 60, 61, 62, 63, 64, 65, 66, 67, 68, 69 },
+            { 50, 51, 52, 53, 54, 55, 56, 57, 58, 59 },
+            { 40, 41, 42, 43, 44, 45, 46, 47, 48, 49 },
+            { 30, 31, 32, 33, 34, 35, 36, 37, 38, 39 },
+            { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 },
+            { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 },
+            { 255, 01, 02, 03, 04, 05, 06, 07, 08, 255 }
+        };
+        private static readonly byte[,] Mk2MidiLayout = new byte[,]
+        {
+            { 255, 104, 105, 106, 107, 108, 109, 110, 111, 255 },
+            { 255, 81, 82, 83, 84, 85, 86, 87, 88, 89 },
+            { 255, 71, 72, 73, 74, 75, 76, 77, 78, 79 },
+            { 255, 61, 62, 63, 64, 65, 66, 67, 68, 69 },
+            { 255, 51, 52, 53, 54, 55, 56, 57, 58, 59 },
+            { 255, 41, 42, 43, 44, 45, 46, 47, 48, 49 },
+            { 255, 31, 32, 33, 34, 35, 36, 37, 38, 39 },
+            { 255, 21, 22, 23, 24, 25, 26, 27, 28, 29 },
+            { 255, 11, 12, 13, 14, 15, 16, 17, 18, 19 },
+            { 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 }
+        };
+
         public event Action Disconnecting, Disconnected;
         public event Action Connecting, Connected;
         public event Action<byte> ButtonDown, ButtonUp;
@@ -15,20 +42,20 @@ namespace Launchpad
 
         public string Id { get; }
         public string Name { get; }
-        public MidiDeviceType Type { get; }
+        public DeviceType Type { get; }
         public int LEDCount { get; }
         public int Width { get; }
         public int Height { get; }
         
         public bool IsConnected { get; private set; }
 
-        protected RawMidiDevice(MidiDeviceInfo info)
+        protected LaunchpadMidiDevice(string id, string name, DeviceType type)
         {
-            Id = info.Id;
-            Name = info.Name;
-            Type = info.Type;
+            Id = id;
+            Name = name;
+            Type = type;
 
-            if (Type == MidiDeviceType.Mk2) 
+            if (Type == DeviceType.Mk2) 
             {
                 LEDCount = 80;
                 Width = 9;
@@ -42,7 +69,7 @@ namespace Launchpad
             }
             
             // Cache lookups
-            var layout = Type == MidiDeviceType.Mk2 ? MidiDeviceInfo.Mk2MidiLayout : MidiDeviceInfo.ProMidiLayout;
+            var layout = Type == DeviceType.Mk2 ? Mk2MidiLayout : ProMidiLayout;
             
             _midiToIndex = new byte[256];
             _indexToMidi = new byte[256];
@@ -127,7 +154,7 @@ namespace Launchpad
 
         internal void GetPos(byte midiId, out byte x, out byte y)
         {
-            if (Type == MidiDeviceType.Mk2 && midiId >= 104)
+            if (Type == DeviceType.Mk2 && midiId >= 104)
                 midiId -= 13;
             y = (byte)(midiId / 10U);
             x = (byte)(midiId % 10U);

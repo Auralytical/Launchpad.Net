@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Launchpad.Alsa
+namespace Launchpad.Engines.Alsa
 {
     internal static class NativeMethods
     {

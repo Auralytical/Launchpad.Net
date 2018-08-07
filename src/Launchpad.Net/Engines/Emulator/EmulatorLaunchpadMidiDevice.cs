@@ -1,14 +1,14 @@
 using System;
 
-namespace Launchpad.Emulator
+namespace Launchpad.Engines.Emulator
 {
-    internal class EmulatorMidiDevice : RawMidiDevice
+    internal class EmulatorLaunchpadMidiDevice : LaunchpadMidiDevice
     {
         private readonly LED[] _leds;
         private bool _ledsInvalidated;
 
-        public EmulatorMidiDevice(MidiDeviceInfo info)
-            : base(info)
+        internal EmulatorLaunchpadMidiDevice(string id, string name, DeviceType type)
+            : base(id, name, type)
         {
             _leds = new LED[LaunchpadDevice.MaxLEDCount];
         }

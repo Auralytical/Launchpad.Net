@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace Launchpad.Winmm
+namespace Launchpad.Engines.Winmm
 {
     //https://msdn.microsoft.com/en-us/library/vs/alm/dd798449(v=vs.85).aspx
     [StructLayout(LayoutKind.Sequential)]

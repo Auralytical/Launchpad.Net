@@ -1,14 +1,14 @@
 using System;
 
-namespace Launchpad.Alsa
+namespace Launchpad.Engines.Alsa
 {
-    internal class AlsaMidiDevice : RawMidiDevice
+    internal class AlsaLaunchpadMidiDevice : LaunchpadMidiDevice
     {
         private IntPtr _inDeviceHandle, _outDeviceHandle;
         private byte[] _readBuffer;
 
-        public AlsaMidiDevice(MidiDeviceInfo info)
-            : base(info) { }
+        internal AlsaLaunchpadMidiDevice(string id, string name, DeviceType type)
+            : base(id, name, type) { }
 
         protected override bool ConnectInternal(bool isNormal)
         {
