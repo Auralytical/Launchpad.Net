@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <PackageLicenseUrl>http://opensource.org/licenses/MIT</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/RogueException/Launchpad.Net</PackageProjectUrl>
@@ -10,8 +9,10 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <TargetFramework>netstandard2.0</TargetFramework>
-    <AssemblyName>Launchpad.Net</AssemblyName>
     <RootNamespace>Launchpad</RootNamespace>
+    <AssemblyName>Launchpad.Net</AssemblyName>
+    <PackageTags>launchpad;audio;midi;rogueexception</PackageTags>
+    <Description>Simple wrapper for interfacing with Launchpad Mk2 and Pro devices</Description>
     <RuntimeIdentifiers>win-any;ubuntu-any</RuntimeIdentifiers>
     <VersionPrefix>0.2.0</VersionPrefix>
   </PropertyGroup>
