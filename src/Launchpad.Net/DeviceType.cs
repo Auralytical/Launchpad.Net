@@ -4,6 +4,7 @@ namespace Launchpad
     {
         None,
         Mk2,
-        Pro
+        Pro,
+        ProWithPower
     }
 }

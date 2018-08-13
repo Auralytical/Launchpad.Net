@@ -6,7 +6,7 @@ namespace Launchpad
     {
         public const int MaxLEDCount = 97;
         
-        private static readonly byte[,] ProMidiLayout = new byte[,]
+        private static readonly byte[,] ProWithPowerMidiLayout = new byte[,]
         {
             { 255, 91, 92, 93, 94, 95, 96, 97, 98, 255 },
             { 80, 81, 82, 83, 84, 85, 86, 87, 88, 89 },
@@ -19,6 +19,19 @@ namespace Launchpad
             { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 },
             { 255, 01, 02, 03, 04, 05, 06, 07, 08, 255 },
             { 255, 255, 255, 255, 99, 255, 255, 255, 255, 255}
+        };
+        private static readonly byte[,] ProMidiLayout = new byte[,]
+        {
+            { 255, 91, 92, 93, 94, 95, 96, 97, 98, 255 },
+            { 80, 81, 82, 83, 84, 85, 86, 87, 88, 89 },
+            { 70, 71, 72, 73, 74, 75, 76, 77, 78, 79 },
+            { 60, 61, 62, 63, 64, 65, 66, 67, 68, 69 },
+            { 50, 51, 52, 53, 54, 55, 56, 57, 58, 59 },
+            { 40, 41, 42, 43, 44, 45, 46, 47, 48, 49 },
+            { 30, 31, 32, 33, 34, 35, 36, 37, 38, 39 },
+            { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 },
+            { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 },
+            { 255, 01, 02, 03, 04, 05, 06, 07, 08, 255 }
         };
         private static readonly byte[,] Mk2MidiLayout = new byte[,]
         {
@@ -58,21 +71,29 @@ namespace Launchpad
             Name = name;
             Type = type;
 
-            if (Type == DeviceType.Mk2) 
+            byte[,] layout;
+            switch (Type)
             {
-                LEDCount = 80;
-                Width = 9;
-                Height = 9;
+                case DeviceType.Mk2:
+                    LEDCount = 80;
+                    Width = 9;
+                    Height = 9;
+                    layout = Mk2MidiLayout;
+                    break;
+                case DeviceType.Pro:
+                default:
+                    LEDCount = 97;
+                    Width = 10;
+                    Height = 10;
+                    layout = ProMidiLayout;
+                    break;
+                case DeviceType.ProWithPower:
+                    LEDCount = 97;
+                    Width = 10;
+                    Height = 11;
+                    layout = ProWithPowerMidiLayout;
+                    break;
             }
-            else //Pro
-            {
-                LEDCount = 97;
-                Width = 10;
-                Height = 11;
-            }
-            
-            // Cache lookups
-            var layout = Type == DeviceType.Mk2 ? Mk2MidiLayout : ProMidiLayout;
             
             _midiToIndex = new byte[256];
             _indexToMidi = new byte[256];
