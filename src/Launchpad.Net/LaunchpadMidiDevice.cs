@@ -4,6 +4,8 @@ namespace Launchpad
 {
     public abstract class LaunchpadMidiDevice  : IDisposable
     {
+        public const int MaxLEDCount = 97;
+        
         private static readonly byte[,] ProMidiLayout = new byte[,]
         {
             { 255, 91, 92, 93, 94, 95, 96, 97, 98, 255 },
@@ -15,7 +17,8 @@ namespace Launchpad
             { 30, 31, 32, 33, 34, 35, 36, 37, 38, 39 },
             { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 },
             { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 },
-            { 255, 01, 02, 03, 04, 05, 06, 07, 08, 255 }
+            { 255, 01, 02, 03, 04, 05, 06, 07, 08, 255 },
+            { 255, 255, 255, 255, 99, 255, 255, 255, 255, 255}
         };
         private static readonly byte[,] Mk2MidiLayout = new byte[,]
         {
@@ -63,9 +66,9 @@ namespace Launchpad
             }
             else //Pro
             {
-                LEDCount = 96;
+                LEDCount = 97;
                 Width = 10;
-                Height = 10;
+                Height = 11;
             }
             
             // Cache lookups
@@ -78,14 +81,14 @@ namespace Launchpad
                 _midiToIndex[i] = 255;
                 _indexToMidi[i] = 255;
             }
-            _posToMidi = new byte[10,10];
-            _posToIndex = new byte[10,10];
+            _posToMidi = new byte[Width, Height];
+            _posToIndex = new byte[Width, Height];
 
-            for (int y = 0, i = 0; y < 10; y++)
+            for (int y = 0, i = 0; y < Height; y++)
             {
-                for (int x = 0; x < 10; x++)
+                for (int x = 0; x < Width; x++)
                 {
-                    byte val = layout[9 - y, x];
+                    byte val = layout[Height - y - 1, x];
                     if (val != 255)
                     {
                         _indexToMidi[i] = val;
@@ -144,12 +147,12 @@ namespace Launchpad
 
         internal byte GetIndex(byte midiId) => _midiToIndex[midiId];
         internal byte GetIndex(int midiId) => GetIndex((byte)midiId);
-        internal byte GetIndex(byte x, byte y) => x < 10 && y < 10 ? _posToIndex[x, y] : byte.MaxValue;
+        internal byte GetIndex(byte x, byte y) => x < Width && y < Height ? _posToIndex[x, y] : byte.MaxValue;
         internal byte GetIndex(int x, int y) => GetIndex((byte)x, (byte)y);
         
         internal byte GetMidiId(byte index) => _midiToIndex[index];
         internal byte GetMidiId(int index) => index >= 0 && index < 256 ? _indexToMidi[index] : byte.MaxValue;
-        internal byte GetMidiId(byte x, byte y) => x < 10 && y < 10 ?_posToMidi[x, y] : byte.MaxValue;
+        internal byte GetMidiId(byte x, byte y) => x < Width && y < Height ?_posToMidi[x, y] : byte.MaxValue;
         internal byte GetMidiId(int x, int y) => GetMidiId((byte)x, (byte)y);
 
         internal void GetPos(byte midiId, out byte x, out byte y)

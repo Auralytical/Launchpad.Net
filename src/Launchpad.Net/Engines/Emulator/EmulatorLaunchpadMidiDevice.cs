@@ -10,7 +10,7 @@ namespace Launchpad.Engines.Emulator
         internal EmulatorLaunchpadMidiDevice(string id, string name, DeviceType type)
             : base(id, name, type)
         {
-            _leds = new LED[LaunchpadDevice.MaxLEDCount];
+            _leds = new LED[LaunchpadMidiDevice.MaxLEDCount];
         }
 
         protected override bool ConnectInternal(bool isNormal) => true;

@@ -8,13 +8,7 @@ using System.Threading.Tasks;
 namespace Launchpad
 {
     public class LaunchpadDevice : IDisposable
-    {        
-        public const int MaxLEDCount = 96;
-        public const int MaxWidth = 10;
-        public const int MaxHeight = 10;
-        public const int MaxInnerWidth = 8;
-        public const int MaxInnerHeight = 8;
-
+    {
         public event Action<IReadOnlyList<LaunchpadEvent>> Tick;
 
         private readonly LaunchpadMidiDevice _device;
@@ -43,19 +37,20 @@ namespace Launchpad
             _leds = Array.Empty<LED>();
             _oldLeds = Array.Empty<LED>();
             var modeMsg = SysEx.CreateBuffer(1, _device.Type, 0x21);
-            modeMsg[7] = 1; //Standalone mode
+            modeMsg[7] = 1; // Standalone mode
             var layoutMsg = SysEx.CreateBuffer(1, _device.Type, 0x2C);
-            layoutMsg[7] = 3; //Programmer layout
+            layoutMsg[7] = 3; // Programmer layout
             var clearMsg = SysEx.CreateBuffer(1, _device.Type, 0x0E);
-            clearMsg[7] = 0; //Clear all lights
+            clearMsg[7] = 0; // Clear all lights
 
-            var connectMsgs = new[] { modeMsg, layoutMsg, clearMsg };
+            var connectMsgs = new[] { modeMsg, layoutMsg };
             var disconnectMsgs = new[] { clearMsg };
 
             _device.Connected += () =>
             {
                 for (int i = 0; i < connectMsgs.Length; i++)
                     Send(connectMsgs[i], connectMsgs[i].Length - 1);
+                _ledsInvalidated = true;
             };
             _device.Disconnecting += () =>
             {
@@ -109,19 +104,8 @@ namespace Launchpad
             Disconnect();
         }
 
-        private bool Connect()
-        {
-            if (_device.Connect())
-            {
-                _ledsInvalidated = true;
-                return true;
-            }
-            return false;
-        }
-        private void Disconnect()
-        {
-            _device.Disconnect();
-        }
+        private bool Connect() => _device.Connect();
+        private void Disconnect() => _device.Disconnect();
 
         private Task RunTask(int tps, int skip, CancellationToken cancelToken)
         {
@@ -178,7 +162,7 @@ namespace Launchpad
         }
         public void Set(LED[] leds)
         {
-            if (leds.Length != 80)
+            if (leds.Length != _device.LEDCount)
                 throw new InvalidOperationException("Array must be 80 elements");
             _leds = leds;
             _ledsInvalidated = true;
@@ -240,8 +224,8 @@ namespace Launchpad
                 byte id = _device.GetMidiId(i);
                 var led = _leds[i];
                 var oldLed = _oldLeds[i];
-                if (led.Mode == oldLed.Mode && led.Color == oldLed.Color && led.FlashColor == oldLed.FlashColor)
-                    continue;
+                // if (led.Mode == oldLed.Mode && led.Color == oldLed.Color && led.FlashColor == oldLed.FlashColor)
+                //     continue;
                 switch (led.Mode)
                 {
                     case LEDMode.Off:
