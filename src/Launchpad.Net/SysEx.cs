@@ -1,8 +1,8 @@
 namespace Launchpad
 {
-    internal static class SysEx
+    public static class SysEx
     {
-        public const int MaxMessageLength = 7 + (3 * LaunchpadDevice.MaxLEDCount) + 1; //MK2 = 80, Pro = 97
+        public const int MaxMessageLength = 7 + (3 * LaunchpadMidiDevice.MaxLEDCount) + 1; //MK2 = 80, Pro = 97
 
         public static byte[] CreateBuffer(int length, DeviceType type, byte mode)
         {
