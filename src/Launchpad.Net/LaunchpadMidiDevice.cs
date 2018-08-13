@@ -82,7 +82,7 @@ namespace Launchpad
                     break;
                 case DeviceType.Pro:
                 default:
-                    LEDCount = 97;
+                    LEDCount = 96;
                     Width = 10;
                     Height = 10;
                     layout = ProMidiLayout;
