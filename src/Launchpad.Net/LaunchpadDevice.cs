@@ -163,7 +163,7 @@ namespace Launchpad
         public void Set(LED[] leds)
         {
             if (leds.Length != _device.LEDCount)
-                throw new InvalidOperationException("Array must be 80 elements");
+                throw new InvalidOperationException($"Array must be {_device.LEDCount} elements for this device");
             _leds = leds;
             _ledsInvalidated = true;
         }
@@ -211,6 +211,7 @@ namespace Launchpad
             _leds[index].FlashColor = (byte)toColor;
             _ledsInvalidated = true;
         }
+
         private void Render()
         {
             if (!_ledsInvalidated)
