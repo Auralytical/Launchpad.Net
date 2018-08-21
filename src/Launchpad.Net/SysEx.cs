@@ -1,33 +1,53 @@
+using System;
+
 namespace Launchpad
 {
     public static class SysEx
     {
-        public const int MaxMessageLength = 7 + (3 * LaunchpadMidiDevice.MaxLEDCount) + 1; //MK2 = 80, Pro = 97
+        public const int MaxMessageLength = 7 + (3 * DeviceInfo.MaxLightCount) + 1; //MK2 = 80, Pro = 97
 
         public static byte[] CreateBuffer(int length, DeviceType type, byte mode)
         {
-            var data = new byte[7 + length + 1];
-            data[0] = 0xF0;
-            data[1] = 0x00;
-            data[2] = 0x20;
-            data[3] = 0x29;
-            data[4] = 0x02;
-            data[5] = (byte)(type == DeviceType.Mk2 ? 0x18 : 0x10);
-            data[6] = mode;
-            return data;
+            switch (type)
+            {
+                case DeviceType.LaunchpadMk2:
+                    {
+                        var data = new byte[7 + length + 1];
+                        data[0] = 0xF0;
+                        data[1] = 0x00;
+                        data[2] = 0x20;
+                        data[3] = 0x29;
+                        data[4] = 0x02;
+                        data[5] = 0x18;
+                        data[6] = mode;
+                        return data;
+                    }
+                case DeviceType.LaunchpadPro:
+                    {
+                        var data = new byte[7 + length + 1];
+                        data[0] = 0xF0;
+                        data[1] = 0x00;
+                        data[2] = 0x20;
+                        data[3] = 0x29;
+                        data[4] = 0x02;
+                        data[5] = 0x10;
+                        data[6] = mode;
+                        return data;
+                    }
+                default:
+                    throw new InvalidOperationException("This device does not support SysEx");
+            }
         }
 
-        public static bool IsValid(byte[] buffer, int count, DeviceType type)
+        public static int GetHeaderLength(DeviceType type)
         {
-            return count >= 8 && 
-                buffer[0] == 0xF0 &&
-                buffer[1] == 0x00 &&
-                buffer[2] == 0x20 &&
-                buffer[3] == 0x29 &&
-                buffer[4] == 0x02 &&
-                ((type == DeviceType.Mk2 && buffer[5] == 0x18) ||
-                (type == DeviceType.Pro && buffer[5] == 0x10)) &&
-                buffer[count - 1] == 0xF7;
+            switch (type)
+            {
+                case DeviceType.LaunchpadMk2: return 7;
+                case DeviceType.LaunchpadPro: return 7;
+                case DeviceType.LaunchpadMini: return 2;
+            }
+            return 0;
         }
     }
 }

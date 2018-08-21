@@ -5,9 +5,9 @@ namespace Launchpad.Engines.Alsa
 {
     public static class AlsaMidiDevices
     {
-        public static IReadOnlyList<LaunchpadMidiDevice> GetLaunchpads(bool mapPowerLED = false)
+        public static IReadOnlyList<MidiDevice> GetLaunchpads()
         {
-            var devices = new List<AlsaLaunchpadMidiDevice>();
+            var devices = new List<AlsaMidiDevice>();
             int card = -1;
             while (NativeMethods.snd_card_next(ref card) >= 0 && card >= 0)
             {
@@ -34,10 +34,11 @@ namespace Launchpad.Engines.Alsa
                                 continue;
 
                             string port = $"hw:{info.Card},{info.Device},{info.SubDevice}";
-                            if (info.Name.Contains(Midi.Mk2Name) && info.Subname.Contains(Midi.Mk2SubName))
-                                devices.Add(new AlsaLaunchpadMidiDevice(port, info.Name, DeviceType.Mk2));
-                            else if (info.Name.Contains(Midi.ProName) && info.Subname.Contains(Midi.ProSubName))
-                                devices.Add(new AlsaLaunchpadMidiDevice(port, info.Name, mapPowerLED ? DeviceType.ProWithPower : DeviceType.Pro));
+                            foreach (var deviceType in DeviceInfo.SupportedDevices)
+                            {
+                                if (info.Name.Contains(deviceType.MidiName) && info.Subname.Contains(deviceType.MidiSubName))
+                                    devices.Add(new AlsaMidiDevice(port, info.Name, deviceType.Type));
+                            }
                         }
                     }
                 }

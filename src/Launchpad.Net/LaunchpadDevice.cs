@@ -6,74 +6,87 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace Launchpad
-{
+{    
     public class LaunchpadDevice : IDisposable
-    {
+    {        
         public event Action<IReadOnlyList<LaunchpadEvent>> Tick;
 
-        private readonly LaunchpadMidiDevice _device;
-
+        private readonly MidiDevice _device;
+        private readonly DeviceInfo _info;
+        private readonly MidiPosition[,] _posMap;
+        private readonly MidiPosition[] _midiMap, _systemButtonMap;
+        private readonly IRenderer _renderer;
+        
+        private SemaphoreSlim _sendLock;    
         private ConcurrentQueue<LaunchpadEvent> _queuedEvents;
         private Task _task;
-        private CancellationTokenSource _cancelToken;
-
-        private byte[] _normalMsg, _pulseMsg, _flashMsg;
-        private LED[] _leds, _oldLeds;
-        private bool _ledsInvalidated;
+        private CancellationTokenSource _cancelToken;  
 
         public bool IsRunning { get; private set; }
 
-        public string DeviceId => _device.Id;
-        public DeviceType DeviceType => _device.Type;
+        public string Id => _device.Id;
+        public DeviceType Type => _device.Type;
         public bool IsConnected => _device.IsConnected;
-        public int LEDCount => _device.LEDCount;
-        public int Width => _device.Width;
-        public int Height => _device.Height;
+        public int Width => _info.Width;
+        public int Height => _info.Height;
+        public int InnerOffsetX => _info.InnerOffsetX;
+        public int InnerOffsetY => _info.InnerOffsetY;
+        public int LightCount => _info.LightCount;
 
-        public LaunchpadDevice(LaunchpadMidiDevice device)
+        public LaunchpadDevice(MidiDevice device)
         {
             _device = device;
+            _sendLock = new SemaphoreSlim(1, 1);
+            _info = DeviceInfo.FromType(device.Type);
+            _renderer = _info.RendererFactory(_device);
+            
+            // Cache id lookups
+            _posMap = new MidiPosition[Width,Height];
+            _midiMap = new MidiPosition[256];
+            _systemButtonMap = new MidiPosition[256];
 
-            _leds = Array.Empty<LED>();
-            _oldLeds = Array.Empty<LED>();
-            var modeMsg = SysEx.CreateBuffer(1, _device.Type, 0x21);
-            modeMsg[7] = 1; // Standalone mode
-            var layoutMsg = SysEx.CreateBuffer(1, _device.Type, 0x2C);
-            layoutMsg[7] = 3; // Programmer layout
-            var clearMsg = SysEx.CreateBuffer(1, _device.Type, 0x0E);
-            clearMsg[7] = 0; // Clear all lights
+            var empty = new MidiPosition(255, 255, 255, 255, 255, null);
+            for (byte y = 0; y < Height; y++)
+            {
+                for (byte x = 0; x < Width; x++)
+                    _posMap[x, y] = empty;
+            }
+            for (int i = 0; i < _midiMap.Length; i++)
+                _midiMap[i] = empty;
+            for (int i = 0; i < _systemButtonMap.Length; i++)
+                _systemButtonMap[i] = empty;
 
-            var connectMsgs = new[] { modeMsg, layoutMsg };
-            var disconnectMsgs = new[] { clearMsg };
+            for (byte y = 0; y < Height; y++)
+            {
+                for (byte x = 0; x < Width; x++)
+                {
+                    byte midi = _info.Layout[Height - y - 1, x];
+                    if (midi != 255)
+                    {
+                        var systemButton = _info.SystemButtons.TryGetValue(midi, out var systemButtonVal) ? systemButtonVal : (SystemButton?)null;
+                        byte buttonX = x >= _info.InnerOffsetX && x < _info.InnerOffsetX + 8 ? (byte)(x - _info.InnerOffsetX) : (byte)255;
+                        byte buttonY = y >= _info.InnerOffsetY && y < _info.InnerOffsetY + 8 ? (byte)(y - _info.InnerOffsetY) : (byte)255;
+                        var info = new MidiPosition(midi, buttonX, buttonY, x, y, systemButton);
+                        _posMap[x, y] = info;
+                        _midiMap[info.Midi] = info;
+                        if (systemButton.HasValue)
+                            _systemButtonMap[(byte)info.SystemButton.Value] = info;
+                    }
+                }
+            }
 
-            _device.Connected += () =>
+            // Register events
+            _device.ButtonDown += (type, midiId) =>
             {
-                for (int i = 0; i < connectMsgs.Length; i++)
-                    Send(connectMsgs[i], connectMsgs[i].Length - 1);
-                _ledsInvalidated = true;
+                if (type == MidiMessageType.ControlModeChange && (Type == DeviceType.LaunchpadS || Type == DeviceType.LaunchpadMini))
+                    midiId += 100; // Adjust for overlapping midi codes
+                _queuedEvents.Enqueue(new LaunchpadEvent(EventType.ButtonDown, _midiMap[midiId]));
             };
-            _device.Disconnecting += () =>
+            _device.ButtonUp += (type, midiId) =>
             {
-                for (int i = 0; i < disconnectMsgs.Length; i++)
-                    Send(disconnectMsgs[i], disconnectMsgs[i].Length - 1);
-            };
-            _device.ButtonDown += midiId => 
-            {
-                _device.GetPos(midiId, out var x, out var y);
-                var btn = new Button(midiId, x, y);
-                if (btn.IsSystem)
-                    _queuedEvents.Enqueue(new LaunchpadEvent(EventType.SystemButtonDown, btn));
-                else
-                    _queuedEvents.Enqueue(new LaunchpadEvent(EventType.ButtonDown, btn));
-            };
-            _device.ButtonUp += midiId => 
-            {
-                _device.GetPos(midiId, out var x, out var y);
-                var btn = new Button(midiId, x, y);
-                if (btn.IsSystem)
-                    _queuedEvents.Enqueue(new LaunchpadEvent(EventType.SystemButtonUp, btn));
-                else
-                    _queuedEvents.Enqueue(new LaunchpadEvent(EventType.ButtonUp, btn));
+                if (type == MidiMessageType.ControlModeChange && (Type == DeviceType.LaunchpadS || Type == DeviceType.LaunchpadMini))
+                    midiId += 100; // Adjust for overlapping midi codes
+                _queuedEvents.Enqueue(new LaunchpadEvent(EventType.ButtonUp, _midiMap[midiId]));
             };
         }
         public void Dispose()
@@ -81,17 +94,19 @@ namespace Launchpad
             Stop();
         }
 
-        public void Start(int tps, int skip = 0)
+        public void Start(int bpm, int tps)
         {
             Stop();
             _queuedEvents = new ConcurrentQueue<LaunchpadEvent>();
             _cancelToken = new CancellationTokenSource();
-            _oldLeds = new LED[_device.LEDCount];
-            _leds = new LED[_device.LEDCount];
-            _normalMsg = SysEx.CreateBuffer(2 * _leds.Length, _device.Type, 0x0A);
-            _pulseMsg = SysEx.CreateBuffer(3 * _leds.Length, _device.Type, 0x28);
-            _flashMsg = SysEx.CreateBuffer(3 * _leds.Length, _device.Type, 0x23);
-            _task = RunTask(tps, skip, _cancelToken.Token);
+            _task = Task.Run(async () =>
+            {
+                IsRunning = true;
+                var clockTask = RunClockTask(bpm, _cancelToken.Token);
+                var logicTask = RunLogicTask(tps, _cancelToken.Token);
+                await Task.WhenAll(clockTask, logicTask).ConfigureAwait(false);
+                IsRunning = false;
+            });
         }
         public void Stop()
         { 
@@ -101,20 +116,45 @@ namespace Launchpad
                 _task.GetAwaiter().GetResult();
                 _task = null;
             }
-            Disconnect();
+            _device.Disconnect();
         }
 
-        private bool Connect() => _device.Connect();
-        private void Disconnect() => _device.Disconnect();
-
-        private Task RunTask(int tps, int skip, CancellationToken cancelToken)
+        private Task RunClockTask(int bpm, CancellationToken cancelToken)
         {
             return Task.Run(async () =>
             {
-                IsRunning = true;
+                var midiMsg = new byte[] { 0xF8 }; // MIDI Clock
+
+                var tickLength = TimeSpan.FromSeconds((1.0 / bpm) * 24); // Sent at 24 ppqn (pulses per quarter note)
+                var nextTick = DateTimeOffset.UtcNow + tickLength;
+                while (!cancelToken.IsCancellationRequested)
+                {
+                    //Limit loop to bpm rate
+                    var now = DateTimeOffset.UtcNow;
+                    if (now < nextTick)
+                    {
+                        await Task.Delay(nextTick - now);
+                        continue;
+                    }
+                    nextTick += tickLength;
+
+                    //If not connected to the device, sleep
+                    if (!IsConnected)
+                        continue;
+
+                    await _sendLock.WaitAsync(cancelToken).ConfigureAwait(false);
+                    try { SendMidi(midiMsg, 1); }
+                    finally { _sendLock.Release(); }
+                }
+            });
+        }
+        private Task RunLogicTask(int tps, CancellationToken cancelToken)
+        {
+            return Task.Run(async () =>
+            {
                 var events = new List<LaunchpadEvent>();
 
-                var tickLength = TimeSpan.FromSeconds((1.0 / tps * (skip + 1)));
+                var tickLength = TimeSpan.FromSeconds(1.0 / tps);
                 var nextTick = DateTimeOffset.UtcNow + tickLength;
                 while (!cancelToken.IsCancellationRequested)
                 {
@@ -130,135 +170,54 @@ namespace Launchpad
                     //If not connected to the device, reconnect
                     if (!IsConnected)
                     {
-                        if (!Connect())
+                        if (!_device.Connect())
                             continue;
                     }
 
                     _device.Update();
 
                     //Fetch all queued events for this tick
+                    events.Clear();
                     while (_queuedEvents.TryDequeue(out var evnt))
                         events.Add(evnt);
-
                     Tick?.Invoke(events);
-                    Render();
 
-                    events.Clear();
+                    await _sendLock.WaitAsync(cancelToken).ConfigureAwait(false);
+                    try { _renderer.Render(); }
+                    finally { _sendLock.Release(); }
                 }
-                IsRunning = false;
             });
         }
 
         public void Clear()
-        {
-            for (int i = 0; i < _leds.Length; i++)
-            {
-                if (_leds[i].Mode != LEDMode.Off)
-                    _ledsInvalidated = true;
-                _leds[i].Mode = LEDMode.Off;
-                _leds[i].Color = 0;
-                _leds[i].FlashColor = 0;
-            }
-        }
-        public void Set(LED[] leds)
-        {
-            if (leds.Length != _device.LEDCount)
-                throw new InvalidOperationException($"Array must be {_device.LEDCount} elements for this device");
-            _leds = leds;
-            _ledsInvalidated = true;
-        }
-        public void Set(int x, int y, int color)
-        {
-            int index = _device.GetIndex(x, y);
-            if (index == byte.MaxValue)
-                return;
+            => _renderer.Clear();
 
-            _leds[index].Mode = LEDMode.Normal;
-            _leds[index].Color = (byte)color;
-            _leds[index].FlashColor = 0;
-            _ledsInvalidated = true;
-        }
+        public void Set(int x, int y, Light light)
+            => _renderer.Set(_posMap[x, y].Midi, light);
+        public void Set(SystemButton button, Light light)
+            => _renderer.Set(_systemButtonMap[(byte)button].Midi, light);
+        public void Set(int x, int y, byte color)
+            => _renderer.Set(_posMap[x, y].Midi, color);
+        public void Set(SystemButton button, byte color)
+            => _renderer.Set(_systemButtonMap[(byte)button].Midi, color);
         public void SetOff(int x, int y)
+            => _renderer.SetOff(_posMap[x, y].Midi);
+        public void SetOff(SystemButton button)
+            => _renderer.SetOff(_systemButtonMap[(byte)button].Midi);
+        public void SetPulse(int x, int y, byte color)
+            => _renderer.SetPulse(_posMap[x, y].Midi, color);  
+        public void SetPulse(SystemButton button, byte color)
+            => _renderer.SetPulse(_systemButtonMap[(byte)button].Midi, color);        
+        public void SetFlash(int x, int y, byte color1, byte color2)
+            => _renderer.SetFlash(_posMap[x, y].Midi, color1, color2);
+        public void SetFlash(SystemButton button, byte color1, byte color2)
+            => _renderer.SetFlash(_systemButtonMap[(byte)button].Midi, color1, color2);
+
+        private void SendMidi(byte[] buffer, int count)
         {
-            int index = _device.GetIndex(x, y);
-            if (index == byte.MaxValue)
-                return;
-
-            _leds[index].Mode = LEDMode.Off;
-            _leds[index].Color = 0;
-            _leds[index].FlashColor = 0;
-            _ledsInvalidated = true;
+            _device.Send(buffer, count);
         }
-        public void SetPulse(int x, int y, int color)
-        {
-            int index = _device.GetIndex(x, y);
-            if (index == byte.MaxValue || color < 0 || color > 128)
-                return;
-
-            _leds[index].Mode = LEDMode.Pulse;
-            _leds[index].Color = (byte)color;
-            _leds[index].FlashColor = 0;
-            _ledsInvalidated = true;
-        }
-        public void SetFlash(int x, int y, int fromColor, int toColor)
-        {
-            int index = _device.GetIndex(x, y);
-            if (index == byte.MaxValue)
-                return;
-                
-            _leds[index].Mode = LEDMode.Flash;
-            _leds[index].Color = (byte)fromColor;
-            _leds[index].FlashColor = (byte)toColor;
-            _ledsInvalidated = true;
-        }
-
-        private void Render()
-        {
-            if (!_ledsInvalidated)
-                return;
-
-            int normalPos = 7;
-            int pulsePos = 7;
-            int flashPos = 7;
-            for (int i = 0; i < _leds.Length; i++)
-            {
-                byte id = _device.GetMidiId(i);
-                var led = _leds[i];
-                var oldLed = _oldLeds[i];
-                // if (led.Mode == oldLed.Mode && led.Color == oldLed.Color && led.FlashColor == oldLed.FlashColor)
-                //     continue;
-                switch (led.Mode)
-                {
-                    case LEDMode.Off:
-                        _normalMsg[normalPos++] = id;
-                        _normalMsg[normalPos++] = 0;
-                        break;
-                    case LEDMode.Normal:
-                        _normalMsg[normalPos++] = id;
-                        _normalMsg[normalPos++] = led.Color;
-                        break;
-                    case LEDMode.Pulse:
-                        _pulseMsg[pulsePos++] = id;
-                        _pulseMsg[pulsePos++] = led.Color;
-                        break;
-                    case LEDMode.Flash:
-                        _normalMsg[normalPos++] = id;
-                        _normalMsg[normalPos++] = led.Color;
-                        _flashMsg[flashPos++] = 0;
-                        _flashMsg[flashPos++] = id;
-                        _flashMsg[flashPos++] = led.FlashColor;
-                        break;
-                }
-            }
-            Send(_normalMsg, normalPos);
-            Send(_pulseMsg, pulsePos);
-            Send(_flashMsg, flashPos);
-
-            Array.Copy(_leds, _oldLeds, _leds.Length);
-            _ledsInvalidated = false;
-        }
-
-        private void Send(byte[] buffer, int count)
+        private void SendSysEx(byte[] buffer, int count)
         {
             if (count != 7) //Blank msg
             {
@@ -266,7 +225,5 @@ namespace Launchpad
                 _device.Send(buffer, count);
             }
         }
-
-        public byte GetLEDIndex(int x, int y) => _device.GetIndex(x, y);
     }
 }

@@ -1,10 +1,28 @@
+using System;
+
 namespace Launchpad
 {
-    internal static class Midi
+    public static class Midi
     {
-        public const string Mk2Name = "Launchpad MK2";
-        public const string Mk2SubName = "Launchpad MK2 MIDI 2";
-        public const string ProName = "Launchpad Pro";
-        public const string ProSubName = "Launchpad Pro MIDI 2";
+        public const int MaxMessageLength = 7 + (3 * DeviceInfo.MaxLightCount) + 1; //MK2 = 80, Pro = 97
+
+        public static byte[] CreateBuffer(MidiMessageType type, byte channel)
+        {
+            int length;
+            switch (type)
+            {
+                case MidiMessageType.NoteOff: length = 3; break;
+                case MidiMessageType.NoteOn: length = 3; break;
+                case MidiMessageType.PolyphonicAftertouch: length = 3; break;
+                case MidiMessageType.ControlModeChange: length = 3; break;
+                case MidiMessageType.ProgramChange: length = 2; break;
+                case MidiMessageType.ChannelAftertouch: length = 2; break;
+                case MidiMessageType.PitchWheelRange: length = 3; break;
+                default: throw new InvalidOperationException("Unknown MIDI message type");
+            }
+            byte[] data = new byte[length];
+            data[0] = (byte)((byte)type | ((channel - 1) & 0x0F));
+            return data;
+        }
     }
 }

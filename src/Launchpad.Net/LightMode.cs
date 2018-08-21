@@ -1,6 +1,6 @@
 namespace Launchpad
 {
-    public enum LEDMode : byte
+    public enum LightMode : byte
     {
         Off,
         Normal,

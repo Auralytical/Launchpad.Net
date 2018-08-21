@@ -6,6 +6,5 @@
     <AssemblyName>Launchpad.Net</AssemblyName>
     <PackageTags>launchpad;audio;midi;rogueexception</PackageTags>
     <Description>Simple wrapper for interfacing with Launchpad Mk2 and Pro devices</Description>
-    <RuntimeIdentifiers>win-any;ubuntu-any</RuntimeIdentifiers>
   </PropertyGroup>
 </Project>

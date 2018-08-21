@@ -2,12 +2,12 @@ using System;
 
 namespace Launchpad.Engines.Alsa
 {
-    internal class AlsaLaunchpadMidiDevice : LaunchpadMidiDevice
+    internal class AlsaMidiDevice : MidiDevice
     {
         private IntPtr _inDeviceHandle, _outDeviceHandle;
         private byte[] _readBuffer;
 
-        internal AlsaLaunchpadMidiDevice(string id, string name, DeviceType type)
+        internal AlsaMidiDevice(string id, string name, DeviceType type)
             : base(id, name, type) { }
 
         protected override bool ConnectInternal(bool isNormal)
@@ -62,16 +62,17 @@ namespace Launchpad.Engines.Alsa
             int pos = 0;
             while (pos < bytes)
             {
-                switch (_readBuffer[pos++])
+                byte msgType = _readBuffer[pos++];
+                switch (msgType)
                 {
-                    case 144:
-                    case 176:
-                        byte button = _readBuffer[pos++];
+                    case (byte)MidiMessageType.NoteOn:
+                    case (byte)MidiMessageType.ControlModeChange:
+                        byte midiId = _readBuffer[pos++];
                         byte velocity = _readBuffer[pos++];
                         if (velocity != 0)
-                            RaiseButtonDown(button);
+                            RaiseButtonDown((MidiMessageType)msgType, midiId);
                         else
-                            RaiseButtonUp(button);
+                            RaiseButtonUp((MidiMessageType)msgType, midiId);
                         break;
                 }
             }

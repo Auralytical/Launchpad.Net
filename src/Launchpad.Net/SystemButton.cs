@@ -1,0 +1,39 @@
+namespace Launchpad
+{
+    public enum SystemButton
+    {
+        RecordArm,
+        TrackSelect,
+        Mute,
+        Solo,
+        Volume,
+        Pan,
+        Sends,
+        StopClip,
+        Track8,
+        Track7,
+        Track6,
+        Track5,
+        Track4,
+        Track3,
+        Track2,
+        Track1,
+        Up,
+        Down,
+        Left,
+        Right,
+        Mode1,
+        Mode2,
+        Mode3,
+        Mode4,
+        Shift,
+        Click,
+        Undo,
+        Delete,
+        Quantise,
+        Duplicate,
+        Double,
+        Record,
+        PowerLight
+    }
+}

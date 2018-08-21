@@ -5,9 +5,9 @@ namespace Launchpad.Engines.Winmm
 {
     public static class WinmmMidiDevices
     {
-        public static IReadOnlyList<LaunchpadMidiDevice> GetLaunchpads(bool mapPowerLED = false)
+        public static IReadOnlyList<MidiDevice> GetLaunchpads()
         {
-            var devices = new List<WinmmLaunchpadMidiDevice>();
+            var devices = new List<WinmmMidiDevice>();
             int inDeviceCount = NativeMethods.midiInGetNumDevs();
             for (uint i = 0; i < inDeviceCount; i++)
             {
@@ -15,10 +15,11 @@ namespace Launchpad.Engines.Winmm
                 if (NativeMethods.midiInGetDevCaps(i, ref caps, MIDIINCAPS.Size) <= 0)
                     continue;
 
-                if (caps.szPname.Contains(Midi.Mk2Name))
-                    devices.Add(new WinmmLaunchpadMidiDevice(caps.szPname, caps.szPname, DeviceType.Mk2));
-                else if (caps.szPname.Contains(Midi.ProName))
-                    devices.Add(new WinmmLaunchpadMidiDevice(caps.szPname, caps.szPname, mapPowerLED ? DeviceType.ProWithPower : DeviceType.Pro));
+                foreach (var deviceType in DeviceInfo.SupportedDevices)
+                {
+                    if (caps.szPname.Contains(deviceType.MidiName))
+                        devices.Add(new WinmmMidiDevice(caps.szPname, caps.szPname, deviceType.Type));
+                }
             }
             return devices;
         }

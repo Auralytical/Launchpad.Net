@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace Launchpad.Engines.Winmm
 {
-    internal class WinmmLaunchpadMidiDevice : LaunchpadMidiDevice
+    internal class WinmmMidiDevice : MidiDevice
     {
         private uint _inDeviceId, _outDeviceId;
         private IntPtr _inDeviceHandle, _outDeviceHandle;
@@ -12,7 +12,7 @@ namespace Launchpad.Engines.Winmm
         private ManualResetEventSlim _inputClosed, _outputClosed;
         private MidiBuffer _outBuffer;
 
-        public WinmmLaunchpadMidiDevice(string id, string name, DeviceType type)
+        public WinmmMidiDevice(string id, string name, DeviceType type)
             : base(id, name, type)
         {
             _inputClosed = new ManualResetEventSlim(false);
@@ -116,13 +116,19 @@ namespace Launchpad.Engines.Winmm
                     _inputClosed.Set();
                     break;
                 case 0x3C3: //MM_MIM_DATA
-                    //byte status = (byte)(dwParam1 & 0xFF);
-                    byte button = (byte)((dwParam1 >> 8) & 0xFF);
-                    byte velocity = (byte)((dwParam1 >> 16) & 0xFF);
-                    if (velocity != 0)
-                        RaiseButtonDown(button);
-                    else
-                        RaiseButtonUp(button);
+                    byte msgType = (byte)(dwParam1 >> 0); // TODO: Test
+                    byte midiId = (byte)(dwParam1 >> 8);
+                    byte velocity = (byte)(dwParam1 >> 16);
+                    switch (msgType)
+                    {
+                        case (byte)MidiMessageType.NoteOn:
+                        case (byte)MidiMessageType.ControlModeChange:
+                            if (velocity != 0)
+                                RaiseButtonDown((MidiMessageType)msgType, midiId);
+                            else
+                                RaiseButtonUp((MidiMessageType)msgType, midiId);
+                            break;
+                    }
                     break;
                 default:
                     break;
