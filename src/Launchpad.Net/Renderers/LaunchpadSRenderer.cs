@@ -176,7 +176,6 @@ namespace Launchpad
                         }
                         break;
                     case LightMode.Normal:
-                    case LightMode.Pulse: // Not supported
                         if (midi >= 204 && midi <= 211) // Top Row (+100 to avoid overlapping codes)
                         {
                             _topNoteOn[1] = (byte)(midi - 100);
@@ -190,6 +189,7 @@ namespace Launchpad
                             SendMidi(_noteOn);
                         }
                         break;
+                    case LightMode.Pulse: // Not supported, treat as flash
                     case LightMode.Flash:
                         if (midi >= 204 && midi <= 211) // Top Row (+100 to avoid overlapping codes)
                         {
