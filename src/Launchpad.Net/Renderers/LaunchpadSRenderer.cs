@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 
 namespace Launchpad
 {    
-    // TODO: Add running status and/or buffering (see: Double buffering in reference)
     public class LaunchpadSRenderer : IRenderer
     {        
         private readonly MidiDevice _device;
@@ -16,7 +15,6 @@ namespace Launchpad
         private readonly byte[] _noteOn, _noteOff, _topNoteOn, _topNoteOff;
         private readonly byte[] _indexToMidi, _midiToIndex;
         private bool _lightsInvalidated;
-        private int _flashTimer;
         private bool _flashState;
 
         public LaunchpadSRenderer(MidiDevice device)
@@ -149,15 +147,12 @@ namespace Launchpad
 
         public void ClockTick()
         {
-            if (++_flashTimer >= 24)
-            {
-                _flashState = !_flashState;
-                _flashTimer = 0;
-            }
+            _flashState = !_flashState;
         }
 
         public void Render()
         {
+            // TODO: Add running status and/or buffering (see: Double buffering in reference)
             if (!_lightsInvalidated)
                 return;
 
@@ -199,13 +194,13 @@ namespace Launchpad
                         if (midi >= 204 && midi <= 211) // Top Row (+100 to avoid overlapping codes)
                         {
                             _topNoteOn[1] = (byte)(midi - 100);
-                            _topNoteOn[2] = flashState ? light.FlashColor : light.Color;
+                            _topNoteOn[2] = flashState ? (byte)0 : light.Color; // light.FlashColor
                             SendMidi(_topNoteOn);
                         }
                         else
                         {
                             _noteOn[1] = midi;
-                            _noteOn[2] = flashState ? light.FlashColor : light.Color;
+                            _noteOn[2] = flashState ? (byte)0 : light.Color; // light.FlashColor
                             SendMidi(_noteOn);
                         }
                         break;
