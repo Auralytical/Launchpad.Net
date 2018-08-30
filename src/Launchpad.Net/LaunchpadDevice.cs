@@ -143,7 +143,10 @@ namespace Launchpad
                         continue;
 
                     await _sendLock.WaitAsync(cancelToken).ConfigureAwait(false);
-                    try { SendMidi(midiMsg, 1); }
+                    try { 
+                        SendMidi(midiMsg, 1);
+                        _renderer.ClockTick();
+                    }
                     finally { _sendLock.Release(); }
                 }
             });

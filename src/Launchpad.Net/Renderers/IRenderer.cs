@@ -17,6 +17,7 @@ namespace Launchpad
         void SetPulse(byte midiId, byte color);       
         void SetFlash(byte midiId, byte color1, byte color2);
 
+        void ClockTick();
         void Render();
     }
 }

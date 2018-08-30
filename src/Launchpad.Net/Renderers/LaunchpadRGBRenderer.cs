@@ -187,5 +187,7 @@ namespace Launchpad
                 _device.Send(buffer, count);
             }
         }
+
+        void IRenderer.ClockTick() { }
     }
 }

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace Launchpad
 {    
+    // TODO: Add running status and/or buffering (see: Double buffering in reference)
     public class LaunchpadSRenderer : IRenderer
     {        
         private readonly MidiDevice _device;
@@ -15,6 +16,8 @@ namespace Launchpad
         private readonly byte[] _noteOn, _noteOff, _topNoteOn, _topNoteOff;
         private readonly byte[] _indexToMidi, _midiToIndex;
         private bool _lightsInvalidated;
+        private int _flashTimer;
+        private bool _flashState;
 
         public LaunchpadSRenderer(MidiDevice device)
         {
@@ -144,11 +147,21 @@ namespace Launchpad
             _lightsInvalidated = true;
         }
 
+        public void ClockTick()
+        {
+            if (++_flashTimer >= 24)
+            {
+                _flashState = !_flashState;
+                _flashTimer = 0;
+            }
+        }
+
         public void Render()
         {
             if (!_lightsInvalidated)
                 return;
 
+            var flashState = _flashState; // Cache because value is updated async
             for (int i = 0; i < _lights.Length; i++)
             {
                 byte midi = _indexToMidi[i];
@@ -169,7 +182,6 @@ namespace Launchpad
                         break;
                     case LightMode.Normal:
                     case LightMode.Pulse: // Not supported
-                    case LightMode.Flash: // TODO: Impl
                         if (midi >= 204 && midi <= 211) // Top Row (+100 to avoid overlapping codes)
                         {
                             _topNoteOn[1] = (byte)(midi - 100);
@@ -180,6 +192,20 @@ namespace Launchpad
                         {
                             _noteOn[1] = midi;
                             _noteOn[2] = light.Color;
+                            SendMidi(_noteOn);
+                        }
+                        break;
+                    case LightMode.Flash:
+                        if (midi >= 204 && midi <= 211) // Top Row (+100 to avoid overlapping codes)
+                        {
+                            _topNoteOn[1] = (byte)(midi - 100);
+                            _topNoteOn[2] = flashState ? light.FlashColor : light.Color;
+                            SendMidi(_topNoteOn);
+                        }
+                        else
+                        {
+                            _noteOn[1] = midi;
+                            _noteOn[2] = flashState ? light.FlashColor : light.Color;
                             SendMidi(_noteOn);
                         }
                         break;
