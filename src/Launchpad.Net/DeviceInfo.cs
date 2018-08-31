@@ -29,28 +29,31 @@ namespace Launchpad
         }
 
         public DeviceType Type { get; }
-        public int Width { get; }
-        public int Height { get; }
-        public int InnerOffsetX { get; }
-        public int InnerOffsetY { get; }
+        public byte Width { get; }
+        public byte Height { get; }
+        public byte InnerOffsetX { get; }
+        public byte InnerOffsetY { get; }
         public int LightCount { get; }
         public string MidiName { get; }
         public string MidiSubName { get; }
-        public byte[,] Layout { get; }
+        public byte[,] MidiLayout { get; }
+        public byte[,] IndexLayout { get; }
         public IReadOnlyDictionary<byte, SystemButton> SystemButtons { get; }
         public IReadOnlyDictionary<byte, Color> Colors { get; }
         public Func<MidiDevice, IRenderer> RendererFactory { get; }
 
-        public DeviceInfo(DeviceType type, string name, string subName, byte[,] layout, int innerOffsetX, int innerOffsetY, 
+        public DeviceInfo(DeviceType type, string name, string subName, 
+            byte[,] midiLayout, byte[,] indexLayout, byte innerOffsetX, byte innerOffsetY, 
             IReadOnlyDictionary<byte, SystemButton> systemButtons, IReadOnlyDictionary<byte, Color> colors,
             Func<MidiDevice, IRenderer> rendererFactory)
         {
             Type = type;
             MidiName = name;
             MidiSubName = subName;
-            Layout = layout;
-            Width = layout.GetLength(1);
-            Height = layout.GetLength(0);
+            MidiLayout = midiLayout;
+            IndexLayout = indexLayout;
+            Width = (byte)indexLayout.GetLength(1);
+            Height = (byte)indexLayout.GetLength(0);
             InnerOffsetX = innerOffsetX;
             InnerOffsetY = innerOffsetY;
             SystemButtons = systemButtons;
@@ -58,11 +61,11 @@ namespace Launchpad
             RendererFactory = rendererFactory;
 
             LightCount = 0;
-            for (int y = 0; y < Height; y++)
+            for (byte y = 0; y < Height; y++)
             {
-                for (int x = 0; x < Width; x++)
+                for (byte x = 0; x < Width; x++)
                 {
-                    if (layout[y, x] != 255)
+                    if (midiLayout[y, x] != 255 && indexLayout[y, x] != 255)
                         LightCount++;
                 }
             }

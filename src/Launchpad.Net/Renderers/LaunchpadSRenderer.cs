@@ -12,8 +12,8 @@ namespace Launchpad
         private readonly MidiDevice _device;
 
         private readonly Light[] _lights;
-        private readonly byte[] _noteOn, _noteOff, _topNoteOn, _topNoteOff;
         private readonly byte[] _indexToMidi, _midiToIndex;
+        private readonly byte[] _normalMsg, _flashMsg, _bufferMsg;
         private bool _lightsInvalidated;
         private bool _flashState;
 
@@ -29,16 +29,16 @@ namespace Launchpad
                 _indexToMidi[i] = 255;
             for (int i = 0; i < _midiToIndex.Length; i++)
                 _midiToIndex[i] = 255;
-            for (byte y = 0, i = 0; y < info.Height; y++)
+            for (byte y = 0; y < info.Height; y++)
             {
                 for (byte x = 0; x < info.Width; x++)
                 {
-                    byte midi = info.Layout[info.Height - y - 1, x];
-                    if (midi != 255)
+                    byte midi = info.MidiLayout[info.Height - y - 1, x];
+                    byte index = info.IndexLayout[info.Height - y - 1, x];
+                    if (midi != 255 && index != 255)
                     {
-                        _indexToMidi[i] = midi;
-                        _midiToIndex[midi] = i;
-                        i++;
+                        _indexToMidi[index] = midi;
+                        _midiToIndex[midi] = index;
                     }
                 }
             }
@@ -47,18 +47,12 @@ namespace Launchpad
             var layoutMsg = Midi.CreateBuffer(MidiMessageType.ControlModeChange, 1);
             layoutMsg[1] = 0x00;
             layoutMsg[2] = 0x01; // X-Y layout
-            var brightnessMsg = Midi.CreateBuffer(MidiMessageType.ControlModeChange, 1);
-            //layoutMsg[1] = 0x1E; // Brightness
-            //layoutMsg[2] = 0x00; // 1/3 (max "safe")
-            layoutMsg[1] = 0x1F; // Brightness
-            layoutMsg[2] = 0x00; // 9/3
             var clearMsg = Midi.CreateBuffer(MidiMessageType.ControlModeChange, 1);
             clearMsg[1] = 0x00;
             clearMsg[2] = 0x00; // Clear all lights
             _device.Connected += () =>
             {
                 SendMidi(layoutMsg);
-                SendMidi(brightnessMsg);
                 SendMidi(clearMsg);
                 _lightsInvalidated = true;
             };
@@ -69,11 +63,10 @@ namespace Launchpad
 
             // Create buffers
             _lights = new Light[info.LightCount];
-            _noteOn = Midi.CreateBuffer(MidiMessageType.NoteOn, 1);
-            _noteOff = Midi.CreateBuffer(MidiMessageType.NoteOff, 1);
-            _topNoteOn = Midi.CreateBuffer(MidiMessageType.ControlModeChange, 1);
-            _topNoteOff = Midi.CreateBuffer(MidiMessageType.ControlModeChange, 1);
-            _topNoteOff[2] = 0x0C;
+            _normalMsg = Midi.CreateBuffer(MidiMessageType.NoteOn, 3, _lights.Length);
+            _flashMsg = Midi.CreateBuffer(MidiMessageType.NoteOn, 3, _lights.Length);
+            _bufferMsg = Midi.CreateBuffer(MidiMessageType.ControlModeChange, 1);
+            _bufferMsg[2] = 32; // Simple
         }
 
         public void Clear()
@@ -152,7 +145,6 @@ namespace Launchpad
 
         public void Render()
         {
-            // TODO: Add running status and/or buffering (see: Double buffering in reference)
             if (!_lightsInvalidated)
                 return;
 
@@ -164,53 +156,28 @@ namespace Launchpad
                 switch (light.Mode)
                 {
                     case LightMode.Off:
-                        if (midi >= 204 && midi <= 211) // Top Row (+100 to avoid overlapping codes)
-                        {
-                            _topNoteOff[1] = (byte)(midi - 100);
-                            SendMidi(_topNoteOff);
-                        }
-                        else
-                        {
-                            _noteOff[1] = midi;
-                            SendMidi(_noteOff);
-                        }
+                        _normalMsg[i + 1] = 0;
+                        _flashMsg[i + 1] = 0;
                         break;
                     case LightMode.Normal:
-                        if (midi >= 204 && midi <= 211) // Top Row (+100 to avoid overlapping codes)
-                        {
-                            _topNoteOn[1] = (byte)(midi - 100);
-                            _topNoteOn[2] = light.Color;
-                            SendMidi(_topNoteOn);
-                        }
-                        else
-                        {
-                            _noteOn[1] = midi;
-                            _noteOn[2] = light.Color;
-                            SendMidi(_noteOn);
-                        }
+                        _normalMsg[i + 1] = light.Color;
+                        _flashMsg[i + 1] = light.Color;
                         break;
                     case LightMode.Pulse: // Not supported, treat as flash
                     case LightMode.Flash:
-                        if (midi >= 204 && midi <= 211) // Top Row (+100 to avoid overlapping codes)
-                        {
-                            _topNoteOn[1] = (byte)(midi - 100);
-                            _topNoteOn[2] = flashState ? (byte)0 : light.Color; // light.FlashColor
-                            SendMidi(_topNoteOn);
-                        }
-                        else
-                        {
-                            _noteOn[1] = midi;
-                            _noteOn[2] = flashState ? (byte)0 : light.Color; // light.FlashColor
-                            SendMidi(_noteOn);
-                        }
+                        _normalMsg[i + 1] = light.Color;
+                        _flashMsg[i + 1] = 0; // light.FlashColor
                         break;
                 }
             }
+            if (!flashState)
+                SendMidi(_normalMsg);
+            else
+                SendMidi(_flashMsg);
+            SendMidi(_bufferMsg); // Reset cursor position
         }
 
         private void SendMidi(byte[] buffer)
-        {
-            _device.Send(buffer, buffer.Length);
-        }
+            => _device.Send(buffer, buffer.Length);
     }
 }

@@ -60,7 +60,7 @@ namespace Launchpad
             {
                 for (byte x = 0; x < Width; x++)
                 {
-                    byte midi = _info.Layout[Height - y - 1, x];
+                    byte midi = _info.MidiLayout[Height - y - 1, x];
                     if (midi != 255)
                     {
                         var systemButton = _info.SystemButtons.TryGetValue(midi, out var systemButtonVal) ? systemButtonVal : (SystemButton?)null;
@@ -123,8 +123,6 @@ namespace Launchpad
         {
             return Task.Run(async () =>
             {
-                var midiMsg = new byte[] { 0xF8 }; // MIDI Clock
-
                 var tickLength = TimeSpan.FromSeconds((1.0 / bpm) * 24); // Sent at 24 ppqn (pulses per quarter note)
                 var nextTick = DateTimeOffset.UtcNow + tickLength;
                 while (!cancelToken.IsCancellationRequested)
@@ -143,10 +141,7 @@ namespace Launchpad
                         continue;
 
                     await _sendLock.WaitAsync(cancelToken).ConfigureAwait(false);
-                    try { 
-                        SendMidi(midiMsg, 1);
-                        _renderer.ClockTick();
-                    }
+                    try { _renderer.ClockTick(); }
                     finally { _sendLock.Release(); }
                 }
             });
@@ -215,18 +210,5 @@ namespace Launchpad
             => _renderer.SetFlash(_posMap[x, y].Midi, color1, color2);
         public void SetFlash(SystemButton button, byte color1, byte color2)
             => _renderer.SetFlash(_systemButtonMap[(byte)button].Midi, color1, color2);
-
-        private void SendMidi(byte[] buffer, int count)
-        {
-            _device.Send(buffer, count);
-        }
-        private void SendSysEx(byte[] buffer, int count)
-        {
-            if (count != 7) //Blank msg
-            {
-                buffer[count++] = 0xF7;
-                _device.Send(buffer, count);
-            }
-        }
     }
 }

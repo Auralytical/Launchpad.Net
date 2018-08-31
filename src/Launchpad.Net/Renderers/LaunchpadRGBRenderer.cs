@@ -11,9 +11,9 @@ namespace Launchpad
     {        
         private readonly MidiDevice _device;
 
-        private readonly byte[] _normalMsg, _pulseMsg, _flashMsg;
         private readonly Light[] _lights;
         private readonly byte[] _indexToMidi, _midiToIndex;
+        private readonly byte[] _normalMsg, _pulseMsg, _flashMsg, _clockMsg;
         private bool _lightsInvalidated;
 
         public LaunchpadRGBRenderer(MidiDevice device)
@@ -28,26 +28,26 @@ namespace Launchpad
                 _indexToMidi[i] = 255;
             for (int i = 0; i < _midiToIndex.Length; i++)
                 _midiToIndex[i] = 255;
-            for (byte y = 0, i = 0; y < info.Height; y++)
+            for (byte y = 0; y < info.Height; y++)
             {
                 for (byte x = 0; x < info.Width; x++)
                 {
-                    byte midi = info.Layout[info.Height - y - 1, x];
-                    if (midi != 255)
+                    byte midi = info.MidiLayout[info.Height - y - 1, x];
+                    byte index = info.IndexLayout[info.Height - y - 1, x];
+                    if (midi != 255 && index != 255)
                     {
-                        _indexToMidi[i] = midi;
-                        _midiToIndex[midi] = i;
-                        i++;
+                        _indexToMidi[index] = midi;
+                        _midiToIndex[midi] = index;
                     }
                 }
             }
 
             // Register events
-            var modeMsg = SysEx.CreateBuffer(1, _device.Type, 0x21);
+            var modeMsg = SysEx.CreateBuffer(_device.Type, 0x21, 1);
             modeMsg[7] = 0x01; // Standalone mode
-            var layoutMsg = SysEx.CreateBuffer(1, _device.Type, 0x2C);
+            var layoutMsg = SysEx.CreateBuffer(_device.Type, 0x2C, 1);
             layoutMsg[7] = 0x03; // Programmer layout
-            var clearMsg = SysEx.CreateBuffer(1, _device.Type, 0x0E);
+            var clearMsg = SysEx.CreateBuffer(_device.Type, 0x0E, 1);
             clearMsg[7] = 0x00; // Clear all lights
             _device.Connected += () =>
             {
@@ -63,9 +63,10 @@ namespace Launchpad
 
             // Create buffers
             _lights = new Light[info.LightCount];
-            _normalMsg = SysEx.CreateBuffer(2 * _lights.Length, _device.Type, 0x0A);
-            _pulseMsg = SysEx.CreateBuffer(3 * _lights.Length, _device.Type, 0x28);
-            _flashMsg = SysEx.CreateBuffer(3 * _lights.Length, _device.Type, 0x23);
+            _normalMsg = SysEx.CreateBuffer(_device.Type, 0x0A, 2 * _lights.Length);
+            _pulseMsg = SysEx.CreateBuffer(_device.Type, 0x28, 3 * _lights.Length);
+            _flashMsg = SysEx.CreateBuffer(_device.Type, 0x23, 3 * _lights.Length);
+            _clockMsg = Midi.CreateBuffer(MidiMessageType.MidiClock, 0); // MIDI Clock
         }
 
         public void Clear()
@@ -137,6 +138,11 @@ namespace Launchpad
             _lightsInvalidated = true;
         }
 
+        public void ClockTick() 
+        { 
+            SendMidi(_clockMsg);
+        }
+
         public void Render()
         {
             if (!_lightsInvalidated)
@@ -187,7 +193,7 @@ namespace Launchpad
                 _device.Send(buffer, count);
             }
         }
-
-        void IRenderer.ClockTick() { }
+        private void SendMidi(byte[] buffer)
+            => _device.Send(buffer, buffer.Length);
     }
 }

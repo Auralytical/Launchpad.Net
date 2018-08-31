@@ -6,7 +6,7 @@ namespace Launchpad
     {
         public const int MaxMessageLength = 7 + (3 * DeviceInfo.MaxLightCount) + 1; //MK2 = 80, Pro = 97
 
-        public static byte[] CreateBuffer(int length, DeviceType type, byte mode)
+        public static byte[] CreateBuffer(DeviceType type, byte mode, int length)
         {
             switch (type)
             {

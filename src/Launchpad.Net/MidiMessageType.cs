@@ -11,6 +11,7 @@ namespace Launchpad
         ProgramChange = 0xC0,
         ChannelAftertouch = 0xD0,
         PitchWheelRange = 0xE0,
-        SystemExclusive = 0xF0
+        SystemExclusive = 0xF0,
+        MidiClock = 0xF8
     }
 }
