@@ -5,16 +5,6 @@ namespace Launchpad.Engines.Winmm
 {
     public static class WinmmMidiDevices
     {
-        private static MidiDevice _bestChoice = null;
-        public static MidiDevice bestChoice
-        {
-            get
-            {
-                if (_bestChoice == null) { GetLaunchpads(); }
-                return _bestChoice;
-            }
-        }
-
         public static IReadOnlyList<MidiDevice> GetLaunchpads()
         {
             var devices = new List<WinmmMidiDevice>();
@@ -27,15 +17,8 @@ namespace Launchpad.Engines.Winmm
 
                 foreach (var deviceType in DeviceInfo.SupportedDevices)
                 {
-                    if (caps.szPname.Contains(deviceType.MidiName))
-                    {
-                        var device = new WinmmMidiDevice(caps.szPname, caps.szPname, deviceType.Type);
-                        devices.Add(device);
-                        if (caps.szPname.Contains(deviceType.MidiSubName.Replace("MIDI ", "MIDIIN")))
-                        {
-                            _bestChoice = device;
-                        }
-                    }
+                    if (caps.szPname.Contains(deviceType.MidiName) && caps.szPname.Contains(deviceType.MidiSubName.Replace("MIDI ", "MIDIIN")))
+                        devices.Add(new WinmmMidiDevice(caps.szPname, caps.szPname, deviceType.Type));
                 }
             }
             return devices;
