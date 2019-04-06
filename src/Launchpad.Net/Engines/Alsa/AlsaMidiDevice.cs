@@ -43,9 +43,9 @@ namespace Launchpad.Engines.Alsa
             }
         }
 
-        protected override bool SendInternal(byte[] buffer, int count)
+        protected override bool SendInternal(byte[] buffer)
         {
-            int result = NativeMethods.snd_rawmidi_write(_outDeviceHandle, buffer, count);
+            int result = NativeMethods.snd_rawmidi_write(_outDeviceHandle, buffer, buffer.Length);
             return result >= 0;
         }
 

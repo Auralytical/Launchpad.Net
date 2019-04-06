@@ -113,7 +113,7 @@ namespace Launchpad
             if (_task != null)
             {
                 _cancelToken.Cancel();
-                _task.GetAwaiter().GetResult();
+                //try { _task.GetAwaiter().GetResult(); } catch { }
                 _task = null;
             }
             _device.Disconnect();

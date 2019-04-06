@@ -9,7 +9,7 @@ namespace Launchpad
         public static DeviceInfo LaunchpadPro { get; } = new DeviceInfo(
             DeviceType.LaunchpadPro,
             "Launchpad Pro",
-            "Launchpad Pro MIDI 2",
+            "MIDI 2",
             new byte[,]
             {
                 { 255, 91, 92, 93, 94, 95, 96, 97, 98, 255 },

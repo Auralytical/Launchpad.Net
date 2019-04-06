@@ -18,17 +18,7 @@ namespace Launchpad.Engines.Winmm
             _inputClosed = new ManualResetEventSlim(false);
             _outputClosed = new ManualResetEventSlim(false);
         }
-
-        protected override bool Connect(bool isNormal)
-        {
-            if (base.Connect())
-            {
-                _inputClosed.Reset();
-                _outputClosed.Reset();
-                return true;
-            }
-            return false;
-        }
+        
         protected override bool ConnectInternal(bool isNormal)
         {
             int inDeviceCount = NativeMethods.midiInGetNumDevs();
@@ -52,7 +42,7 @@ namespace Launchpad.Engines.Winmm
             {
                 var caps = new MIDIOUTCAPS();
                 NativeMethods.midiOutGetDevCaps(i, ref caps, MIDIOUTCAPS.Size);
-                if (caps.szPname == Id)
+                if (caps.szPname == Id.Replace("MIDIIN", "MIDIOUT"))
                 {
                     outDeviceId = i;
                     break;
@@ -76,6 +66,10 @@ namespace Launchpad.Engines.Winmm
             _outDeviceHandle = outDeviceHandle;
             _inputCallback = InputEvent;
             _outputCallback = OutputEvent;
+
+            _inputClosed.Reset();
+            _outputClosed.Reset();
+
             return true;
         }
 
@@ -148,7 +142,7 @@ namespace Launchpad.Engines.Winmm
             }
         }
 
-        protected override bool SendInternal(byte[] buffer, int count)
+        protected override bool SendInternal(byte[] buffer)
         {
             if (!IsConnected)
                 return false;
@@ -156,7 +150,8 @@ namespace Launchpad.Engines.Winmm
                 return false;
             try
             {
-                if (NativeMethods.midiOutLongMsg(_outDeviceHandle, _outBuffer.Ptr, MIDIHDR.Size) >= 0)
+                int retval = NativeMethods.midiOutLongMsg(_outDeviceHandle, _outBuffer.Ptr, MIDIHDR.Size);
+                if(retval == 0)
                     return true;
             }
             finally { _outBuffer.Unprepare(); }
