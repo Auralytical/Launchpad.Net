@@ -179,5 +179,16 @@ namespace Launchpad
 
         private void SendBuffer(byte[] buffer)
             => _device.Send(buffer);
+
+        public void Set(byte midiId, byte red, byte green, byte blue)
+        {
+            // limit to 0 - 7
+            red = (byte)(red * 7 / 127);
+            green = (byte)(green * 7 / 127);
+            // convert
+            int color = (green << 4) | red;
+            
+            Set(midiId, (byte)color);
+        }
     }
 }

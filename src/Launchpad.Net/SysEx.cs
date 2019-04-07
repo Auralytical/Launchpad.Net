@@ -6,15 +6,13 @@ namespace Launchpad
     {
         public const int MaxMessageLength = 7 + (3 * DeviceInfo.MaxLightCount) + 1; //MK2 = 80, Pro = 97
 
-        public static byte[] CreateBuffer(DeviceType type, byte[] msg, int msglen = -1)
+        public static byte[] CreateBuffer(DeviceType type, byte[] msg, int extralen = 0)
         {
-            int blocklen = msglen < msg.Length ? msg.Length : msglen;
-
             switch (type)
             {
                 case DeviceType.LaunchpadMk2:
                     {
-                        var data = new byte[6 + blocklen + 1];
+                        var data = new byte[6 + msg.Length + extralen + 1];
                         data[0] = 0xF0;
                         data[1] = 0x00;
                         data[2] = 0x20;
@@ -27,7 +25,7 @@ namespace Launchpad
                     }
                 case DeviceType.LaunchpadPro:
                     {
-                        var data = new byte[6 + blocklen + 1];
+                        var data = new byte[6 + msg.Length + extralen + 1];
                         data[0] = 0xF0;
                         data[1] = 0x00;
                         data[2] = 0x20;

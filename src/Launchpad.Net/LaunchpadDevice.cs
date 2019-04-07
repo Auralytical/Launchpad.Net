@@ -113,7 +113,7 @@ namespace Launchpad
             if (_task != null)
             {
                 _cancelToken.Cancel();
-                //try { _task.GetAwaiter().GetResult(); } catch { }
+                _task.GetAwaiter().GetResult();
                 _task = null;
             }
             _device.Disconnect();
@@ -198,6 +198,10 @@ namespace Launchpad
             => _renderer.Set(_posMap[x, y].Midi, color);
         public void Set(SystemButton button, byte color)
             => _renderer.Set(_systemButtonMap[(byte)button].Midi, color);
+        public void Set(int x, int y, byte red, byte green, byte blue)
+            => _renderer.Set(_posMap[x, y].Midi, red, green, blue);
+        public void Set(SystemButton button, byte red, byte green, byte blue)
+            => _renderer.Set(_systemButtonMap[(byte)button].Midi, red, green, blue);
         public void SetOff(int x, int y)
             => _renderer.SetOff(_posMap[x, y].Midi);
         public void SetOff(SystemButton button)

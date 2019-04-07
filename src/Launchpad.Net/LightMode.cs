@@ -4,6 +4,7 @@ namespace Launchpad
     {
         Off,
         Normal,
+        RGB,
         Flash,
         Pulse
     }

@@ -10,10 +10,10 @@ namespace Launchpad
     public class LaunchpadRGBRenderer : IRenderer
     {
         private readonly MidiDevice _device;
-
-        private readonly Light[] _lights;
+        
+        private readonly Light[] _lights, _oldLights;
         private readonly byte[] _indexToMidi, _midiToIndex;
-        private readonly byte[] _normalMsg, _pulseMsg, _flashMsg, _clockMsg;
+        private readonly byte[] _clockMsg;
         private bool _lightsInvalidated;
 
         public LaunchpadRGBRenderer(MidiDevice device)
@@ -63,9 +63,7 @@ namespace Launchpad
 
             // Create buffers
             _lights = new Light[info.LightCount];
-            _normalMsg = SysEx.CreateBuffer(_device.Type, new byte[] { 0x0A }, 2 * _lights.Length);
-            _pulseMsg = SysEx.CreateBuffer(_device.Type, new byte[] { 0x28 }, 3 * _lights.Length);
-            _flashMsg = SysEx.CreateBuffer(_device.Type, new byte[] { 0x23 }, 3 * _lights.Length);
+            _oldLights = new Light[info.LightCount];
             _clockMsg = Midi.CreateBuffer(MidiMessageType.MidiClock, 1); // MIDI Clock
         }
 
@@ -85,6 +83,7 @@ namespace Launchpad
             {
                 case LightMode.Off: SetOff(midiId); break;
                 case LightMode.Normal: Set(midiId, light.Color); break;
+                case LightMode.RGB: Set(midiId, light.R, light.G, light.B); break;
                 case LightMode.Pulse: SetPulse(midiId, light.Color); break;
                 case LightMode.Flash: SetFlash(midiId, light.Color, light.FlashColor); break;
             }
@@ -147,43 +146,99 @@ namespace Launchpad
         {
             if (!_lightsInvalidated)
                 return;
+            
+            List<byte> msgs_note_off = new List<byte>() { 0x0A};
+            List<byte> msgs_note_normal = new List<byte>() { 0x0A };
+            List<byte> msgs_note_rgb1 = new List<byte>() { 0x0B };
+            List<byte> msgs_note_rgb2 = new List<byte>() { 0x0B };
+            List<byte> msgs_note_pulse = new List<byte>() { 0x28 };
+            List<byte> msgs_note_flash = new List<byte>() { 0x23 };
 
-            int normalPos = 7;
-            int pulsePos = 7;
-            int flashPos = 7;
             for (int i = 0; i < _lights.Length; i++)
             {
+                if (_oldLights[i].Equals(_lights[i]))
+                    continue;
                 byte midi = _indexToMidi[i];
                 var light = _lights[i];
                 switch (light.Mode)
                 {
                     case LightMode.Off:
-                        _normalMsg[normalPos++] = midi;
-                        _normalMsg[normalPos++] = 0;
+                        msgs_note_off.Add(midi);
+                        msgs_note_off.Add(0);
                         break;
                     case LightMode.Normal:
-                        _normalMsg[normalPos++] = midi;
-                        _normalMsg[normalPos++] = light.Color;
+                        msgs_note_normal.Add(midi);
+                        msgs_note_normal.Add(light.Color);
+                        break;
+                    case LightMode.RGB:
+                        // lpd pro: max rgb sysex cap 78. limit to 40 in a single sysex msg
+                        if ((msgs_note_rgb1.Count - 1) < (4 * 40))
+                        {
+                            msgs_note_rgb1.Add(midi);
+                            msgs_note_rgb1.Add(light.R);
+                            msgs_note_rgb1.Add(light.G);
+                            msgs_note_rgb1.Add(light.B);
+                        }else
+                        {
+                            msgs_note_rgb2.Add(midi);
+                            msgs_note_rgb2.Add(light.R);
+                            msgs_note_rgb2.Add(light.G);
+                            msgs_note_rgb2.Add(light.B);
+                        }
                         break;
                     case LightMode.Pulse:
-                        _pulseMsg[pulsePos++] = midi;
-                        _pulseMsg[pulsePos++] = light.Color;
+                        msgs_note_pulse.Add(midi);
+                        msgs_note_pulse.Add(light.Color);
                         break;
                     case LightMode.Flash:
-                        _normalMsg[normalPos++] = midi;
-                        _normalMsg[normalPos++] = light.Color;
-                        _flashMsg[flashPos++] = midi;
-                        _flashMsg[flashPos++] = light.FlashColor;
+                        msgs_note_normal.Add(midi);
+                        msgs_note_normal.Add(light.Color);
+                        msgs_note_flash.Add(midi);
+                        msgs_note_flash.Add(light.FlashColor);
                         break;
                 }
             }
-            SendBuffer(_normalMsg);
-            SendBuffer(_pulseMsg);
-            SendBuffer(_flashMsg);
+            
+            SendSysExArray(msgs_note_off);
+            SendSysExArray(msgs_note_normal);
+            SendSysExArray(msgs_note_rgb1);
+            SendSysExArray(msgs_note_rgb2);
+            SendSysExArray(msgs_note_pulse);
+            SendSysExArray(msgs_note_flash);
+
+
+            for (int i = 0; i < _lights.Length; i++)
+            {
+                _oldLights[i] = _lights[i];
+            }
+
             _lightsInvalidated = false;
+        }
+
+        private void SendSysExArray(List<byte> msgs)
+        {
+            if (msgs.Count > 1)
+            {
+                SendBuffer(SysEx.CreateBuffer(_device.Type, msgs.ToArray()));
+            }
         }
 
         private void SendBuffer(byte[] buffer)
             => _device.Send(buffer);
+
+        public void Set(byte midiId, byte red, byte green, byte blue)
+        {
+            byte index = _midiToIndex[midiId];
+            if (index == byte.MaxValue)
+                return;
+            if (_lights[index].Mode == LightMode.RGB &&
+                _lights[index].R == red &&
+                _lights[index].G == green &&
+                _lights[index].B == blue)
+                return;
+
+            _lights[index] = new Light(LightMode.RGB, red, green, blue);
+            _lightsInvalidated = true;
+        }
     }
 }
