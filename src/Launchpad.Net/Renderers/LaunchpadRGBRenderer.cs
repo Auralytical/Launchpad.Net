@@ -6,20 +6,20 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace Launchpad
-{    
+{
     public class LaunchpadRGBRenderer : IRenderer
-    {        
+    {
         private readonly MidiDevice _device;
-
-        private readonly Light[] _lights;
+        
+        private readonly Light[] _lights, _oldLights;
         private readonly byte[] _indexToMidi, _midiToIndex;
-        private readonly byte[] _normalMsg, _pulseMsg, _flashMsg, _clockMsg;
+        private readonly byte[] _clockMsg;
         private bool _lightsInvalidated;
 
         public LaunchpadRGBRenderer(MidiDevice device)
         {
             _device = device;
-            
+
             // Cache id lookups
             var info = DeviceInfo.FromType(device.Type);
             _indexToMidi = new byte[256];
@@ -43,30 +43,28 @@ namespace Launchpad
             }
 
             // Register events
-            var modeMsg = SysEx.CreateBuffer(_device.Type, 0x21, 1);
-            modeMsg[7] = 0x01; // Standalone mode
-            var layoutMsg = SysEx.CreateBuffer(_device.Type, 0x2C, 1);
-            layoutMsg[7] = 0x03; // Programmer layout
-            var clearMsg = SysEx.CreateBuffer(_device.Type, 0x0E, 1);
-            clearMsg[7] = 0x00; // Clear all lights
+            // Mode selection, Standalone mode (default)
+            var modeMsg = SysEx.CreateBuffer(_device.Type, new byte[] { 0x21, 0x01 });
+            // Standalone Layout select, Programmer
+            var layoutMsg = SysEx.CreateBuffer(_device.Type, new byte[] { 0x2C, 0x03 });
+            // Set all LEDs, color = 0
+            var clearMsg = SysEx.CreateBuffer(_device.Type, new byte[] { 0x0E, 0x0 });
             _device.Connected += () =>
             {
-                SendSysEx(modeMsg);
-                SendSysEx(layoutMsg);
-                SendSysEx(clearMsg);
+                SendBuffer(modeMsg);
+                SendBuffer(layoutMsg);
+                SendBuffer(clearMsg);
                 _lightsInvalidated = true;
             };
             _device.Disconnecting += () =>
             {
-                SendSysEx(clearMsg);
+                SendBuffer(clearMsg);
             };
 
             // Create buffers
             _lights = new Light[info.LightCount];
-            _normalMsg = SysEx.CreateBuffer(_device.Type, 0x0A, 2 * _lights.Length);
-            _pulseMsg = SysEx.CreateBuffer(_device.Type, 0x28, 3 * _lights.Length);
-            _flashMsg = SysEx.CreateBuffer(_device.Type, 0x23, 3 * _lights.Length);
-            _clockMsg = Midi.CreateBuffer(MidiMessageType.MidiClock, 0); // MIDI Clock
+            _oldLights = new Light[info.LightCount];
+            _clockMsg = Midi.CreateBuffer(MidiMessageType.MidiClock, 1); // MIDI Clock
         }
 
         public void Clear()
@@ -85,6 +83,7 @@ namespace Launchpad
             {
                 case LightMode.Off: SetOff(midiId); break;
                 case LightMode.Normal: Set(midiId, light.Color); break;
+                case LightMode.RGB: Set(midiId, light.R, light.G, light.B); break;
                 case LightMode.Pulse: SetPulse(midiId, light.Color); break;
                 case LightMode.Flash: SetFlash(midiId, light.Color, light.FlashColor); break;
             }
@@ -123,7 +122,7 @@ namespace Launchpad
 
             _lights[index] = new Light(LightMode.Pulse, color);
             _lightsInvalidated = true;
-        }        
+        }
         public void SetFlash(byte midiId, byte color1, byte color2)
         {
             byte index = _midiToIndex[midiId];
@@ -133,67 +132,107 @@ namespace Launchpad
                 _lights[index].Color == color1 &&
                 _lights[index].FlashColor == color2)
                 return;
-                
+
             _lights[index] = new Light(LightMode.Flash, color1, color2);
             _lightsInvalidated = true;
         }
 
-        public void ClockTick() 
-        { 
-            SendMidi(_clockMsg);
+        public void ClockTick()
+        {
+            SendBuffer(_clockMsg);
         }
 
         public void Render()
         {
             if (!_lightsInvalidated)
                 return;
+            
+            List<byte> msgs_note_off = new List<byte>() { 0x0A};
+            List<byte> msgs_note_normal = new List<byte>() { 0x0A };
+            List<byte> msgs_note_rgb1 = new List<byte>() { 0x0B };
+            List<byte> msgs_note_rgb2 = new List<byte>() { 0x0B };
+            List<byte> msgs_note_pulse = new List<byte>() { 0x28 };
+            List<byte> msgs_note_flash = new List<byte>() { 0x23 };
 
-            int normalPos = 7;
-            int pulsePos = 7;
-            int flashPos = 7;
             for (int i = 0; i < _lights.Length; i++)
             {
+                //if (_oldLights[i].Equals(_lights[i]))
+                //    continue;
                 byte midi = _indexToMidi[i];
                 var light = _lights[i];
                 switch (light.Mode)
                 {
                     case LightMode.Off:
-                        _normalMsg[normalPos++] = midi;
-                        _normalMsg[normalPos++] = 0;
+                        msgs_note_off.Add(midi);
+                        msgs_note_off.Add(0);
                         break;
                     case LightMode.Normal:
-                        _normalMsg[normalPos++] = midi;
-                        _normalMsg[normalPos++] = light.Color;
+                        msgs_note_normal.Add(midi);
+                        msgs_note_normal.Add(light.Color);
+                        break;
+                    case LightMode.RGB:
+                        // lpd pro: max rgb sysex cap 78. limit to 40 in a single sysex msg
+                        if ((msgs_note_rgb1.Count - 1) < (4 * 40))
+                        {
+                            msgs_note_rgb1.Add(midi);
+                            msgs_note_rgb1.Add(light.R);
+                            msgs_note_rgb1.Add(light.G);
+                            msgs_note_rgb1.Add(light.B);
+                        }else
+                        {
+                            msgs_note_rgb2.Add(midi);
+                            msgs_note_rgb2.Add(light.R);
+                            msgs_note_rgb2.Add(light.G);
+                            msgs_note_rgb2.Add(light.B);
+                        }
                         break;
                     case LightMode.Pulse:
-                        _pulseMsg[pulsePos++] = midi;
-                        _pulseMsg[pulsePos++] = light.Color;
+                        msgs_note_pulse.Add(midi);
+                        msgs_note_pulse.Add(light.Color);
                         break;
                     case LightMode.Flash:
-                        _normalMsg[normalPos++] = midi;
-                        _normalMsg[normalPos++] = light.Color;
-                        _flashMsg[flashPos++] = midi;
-                        _flashMsg[flashPos++] = light.FlashColor;
+                        msgs_note_normal.Add(midi);
+                        msgs_note_normal.Add(light.Color);
+                        msgs_note_flash.Add(midi);
+                        msgs_note_flash.Add(light.FlashColor);
                         break;
                 }
             }
-            SendSysEx(_normalMsg, normalPos);
-            SendSysEx(_pulseMsg, pulsePos);
-            SendSysEx(_flashMsg, flashPos);
+            
+            SendSysExArray(msgs_note_off);
+            SendSysExArray(msgs_note_normal);
+            SendSysExArray(msgs_note_rgb1);
+            SendSysExArray(msgs_note_rgb2);
+            SendSysExArray(msgs_note_pulse);
+            SendSysExArray(msgs_note_flash);
+
+
+            for (int i = 0; i < _lights.Length; i++)
+            {
+                _oldLights[i] = _lights[i];
+            }
+
             _lightsInvalidated = false;
         }
 
-        private void SendSysEx(byte[] buffer)
-            => SendSysEx(buffer, buffer.Length - 1);
-        private void SendSysEx(byte[] buffer, int count)
+        private void SendSysExArray(List<byte> msgs)
         {
-            if (count != 7) //Blank msg
+            if (msgs.Count > 1)
             {
-                buffer[count++] = 0xF7;
-                _device.Send(buffer, count);
+                SendBuffer(SysEx.CreateBuffer(_device.Type, msgs.ToArray()));
             }
         }
-        private void SendMidi(byte[] buffer)
-            => _device.Send(buffer, buffer.Length);
+
+        private void SendBuffer(byte[] buffer)
+            => _device.Send(buffer);
+
+        public void Set(byte midiId, byte red, byte green, byte blue)
+        {
+            byte index = _midiToIndex[midiId];
+            if (index > byte.MaxValue)
+                return;
+            _lights[index] = new Light(LightMode.RGB, red, green, blue);
+            _lightsInvalidated = true;
+        }
     }
 }

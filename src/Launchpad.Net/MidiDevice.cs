@@ -53,13 +53,13 @@ namespace Launchpad
         }        
         protected virtual void DisconnectInternal(bool isNormal) { }
 
-        public virtual bool Send(byte[] buffer, int count)
+        public virtual bool Send(byte[] buffer)
         {
             if (!IsConnected)
                 return false;
-            return SendInternal(buffer, count);
+            return SendInternal(buffer);
         }
-        protected virtual bool SendInternal(byte[] buffer, int count) => false;
+        protected virtual bool SendInternal(byte[] buffer) => false;
 
         protected void RaiseButtonDown(MidiMessageType type, byte midiId) => ButtonDown?.Invoke(type, midiId);
         protected void RaiseButtonUp(MidiMessageType type, byte midiId) => ButtonUp?.Invoke(type, midiId);

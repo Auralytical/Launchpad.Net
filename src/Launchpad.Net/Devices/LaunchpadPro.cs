@@ -9,7 +9,7 @@ namespace Launchpad
         public static DeviceInfo LaunchpadPro { get; } = new DeviceInfo(
             DeviceType.LaunchpadPro,
             "Launchpad Pro",
-            "Launchpad Pro MIDI 2",
+            "MIDI 2",
             new byte[,]
             {
                 { 255, 91, 92, 93, 94, 95, 96, 97, 98, 255 },
@@ -35,8 +35,8 @@ namespace Launchpad
                 { 85, 40, 41, 42, 43, 44, 45, 46, 47, 69 },
                 { 86, 48, 49, 50, 51, 52, 53, 54, 55, 70 },
                 { 87, 56, 57, 58, 59, 60, 61, 62, 63, 71 },
-                { 255, 01, 02, 03, 04, 05, 06, 07, 08, 255 },
-                { 255, 255, 255, 255, 88, 255, 255, 255, 255, 255}
+                { 255, 88, 89, 90, 91, 92, 93, 94, 95, 255 },
+                { 255, 255, 255, 255, 96, 255, 255, 255, 255, 255}
             }, 1, 2, 
             new Dictionary<byte, SystemButton>
             {

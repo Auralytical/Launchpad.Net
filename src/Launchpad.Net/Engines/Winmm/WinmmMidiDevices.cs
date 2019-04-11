@@ -12,12 +12,12 @@ namespace Launchpad.Engines.Winmm
             for (uint i = 0; i < inDeviceCount; i++)
             {
                 var caps = new MIDIINCAPS();
-                if (NativeMethods.midiInGetDevCaps(i, ref caps, MIDIINCAPS.Size) <= 0)
+                if (NativeMethods.midiInGetDevCaps(i, ref caps, MIDIINCAPS.Size) != 0)
                     continue;
 
                 foreach (var deviceType in DeviceInfo.SupportedDevices)
                 {
-                    if (caps.szPname.Contains(deviceType.MidiName))
+                    if (caps.szPname.Contains(deviceType.MidiName) && caps.szPname.Contains(deviceType.MidiSubName.Replace("MIDI ", "MIDIIN")))
                         devices.Add(new WinmmMidiDevice(caps.szPname, caps.szPname, deviceType.Type));
                 }
             }

@@ -198,6 +198,10 @@ namespace Launchpad
             => _renderer.Set(_posMap[x, y].Midi, color);
         public void Set(SystemButton button, byte color)
             => _renderer.Set(_systemButtonMap[(byte)button].Midi, color);
+        public void Set(int x, int y, byte red, byte green, byte blue)
+            => _renderer.Set(_posMap[x, y].Midi, red, green, blue);
+        public void Set(SystemButton button, byte red, byte green, byte blue)
+            => _renderer.Set(_systemButtonMap[(byte)button].Midi, red, green, blue);
         public void SetOff(int x, int y)
             => _renderer.SetOff(_posMap[x, y].Midi);
         public void SetOff(SystemButton button)
@@ -210,5 +214,61 @@ namespace Launchpad
             => _renderer.SetFlash(_posMap[x, y].Midi, color1, color2);
         public void SetFlash(SystemButton button, byte color1, byte color2)
             => _renderer.SetFlash(_systemButtonMap[(byte)button].Midi, color1, color2);
+
+        public void SetRow(int x, int y1, int y2, byte color)
+        {
+            if(y1 > y2)
+            {
+                int y3 = y1;
+                y1 = y2;
+                y2 = y1;
+            }
+            for(int y=y1; y < y2; y++)
+            {
+                Set(x, y, color);
+            }
+        }
+
+        public void SetLine(int y, int x1, int x2, byte color)
+        {
+            if (x1 > x2)
+            {
+                int x3 = x1;
+                x1 = x2;
+                x2 = x1;
+            }
+            for (int x = x1; x < x2; x++)
+            {
+                Set(x, y, color);
+            }
+        }
+        public void SetRow(int x, int y1, int y2, byte red, byte green, byte blue = 0)
+        {
+            if (y1 > y2)
+            {
+                int y3 = y1;
+                y1 = y2;
+                y2 = y1;
+            }
+            for (int y = y1; y <= y2; y++)
+            {
+                Set(x, y, red, green ,blue);
+            }
+        }
+
+        public void SetLine(int y, int x1, int x2, byte red, byte green, byte blue = 0)
+        {
+            if (x1 > x2)
+            {
+                int x3 = x1;
+                x1 = x2;
+                x2 = x1;
+            }
+            for (int x = x1; x <= x2; x++)
+            {
+                Set(x, y, red, green, blue);
+            }
+        }
+
     }
 }

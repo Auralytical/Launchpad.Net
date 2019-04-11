@@ -52,13 +52,13 @@ namespace Launchpad
             clearMsg[2] = 0x00; // Clear all lights
             _device.Connected += () =>
             {
-                SendMidi(layoutMsg);
-                SendMidi(clearMsg);
+                SendBuffer(layoutMsg);
+                SendBuffer(clearMsg);
                 _lightsInvalidated = true;
             };
             _device.Disconnecting += () =>
             {
-                SendMidi(clearMsg);
+                SendBuffer(clearMsg);
             };
 
             // Create buffers
@@ -171,13 +171,24 @@ namespace Launchpad
                 }
             }
             if (!flashState)
-                SendMidi(_normalMsg);
+                SendBuffer(_normalMsg);
             else
-                SendMidi(_flashMsg);
-            SendMidi(_bufferMsg); // Reset cursor position
+                SendBuffer(_flashMsg);
+            SendBuffer(_bufferMsg); // Reset cursor position
         }
 
-        private void SendMidi(byte[] buffer)
-            => _device.Send(buffer, buffer.Length);
+        private void SendBuffer(byte[] buffer)
+            => _device.Send(buffer);
+
+        public void Set(byte midiId, byte red, byte green, byte blue)
+        {
+            // limit to 0 - 7
+            red = (byte)(red * 7 / 127);
+            green = (byte)(green * 7 / 127);
+            // convert
+            int color = (green << 4) | red;
+            
+            Set(midiId, (byte)color);
+        }
     }
 }
