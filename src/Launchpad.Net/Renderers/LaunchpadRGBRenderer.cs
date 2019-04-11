@@ -156,8 +156,8 @@ namespace Launchpad
 
             for (int i = 0; i < _lights.Length; i++)
             {
-                if (_oldLights[i].Equals(_lights[i]))
-                    continue;
+                //if (_oldLights[i].Equals(_lights[i]))
+                //    continue;
                 byte midi = _indexToMidi[i];
                 var light = _lights[i];
                 switch (light.Mode)
@@ -229,14 +229,8 @@ namespace Launchpad
         public void Set(byte midiId, byte red, byte green, byte blue)
         {
             byte index = _midiToIndex[midiId];
-            if (index == byte.MaxValue)
+            if (index > byte.MaxValue)
                 return;
-            if (_lights[index].Mode == LightMode.RGB &&
-                _lights[index].R == red &&
-                _lights[index].G == green &&
-                _lights[index].B == blue)
-                return;
-
             _lights[index] = new Light(LightMode.RGB, red, green, blue);
             _lightsInvalidated = true;
         }
